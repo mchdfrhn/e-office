@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { api } from "./utils/api";
 
 const roleConfig = {
   User: {
@@ -166,20 +167,144 @@ export default function Home() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [ajuanRequests, setAjuanRequests] = useState(initialAjuanRequests);
   const [userRows, setUserRows] = useState(initialUsers);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [auditRows, setAuditRows] = useState([]);
 
-  const config = roleConfig[role];
+  function resolveRoleName(roleCode) {
+    const map = {
+      administrator: "Administrator",
+      operator: "Operator",
+      pimpinan: "Pimpinan",
+      user: "User",
+      pegawai: "Pegawai"
+    };
+    return map[roleCode] || "User";
+  }
+
+  const loadUsers = useCallback(async () => {
+    try {
+      const data = await api.getUsers({ perPage: 100 });
+      if (data && data.data) {
+        const mapped = data.data.map(u => [
+          u.id,
+          u.full_name,
+          u.role,
+          u.unit || "-",
+          u.status === "aktif" ? "Aktif" : "Nonaktif"
+        ]);
+        setUserRows(mapped);
+      }
+    } catch (e) {
+      console.error("Gagal memuat pengguna", e);
+    }
+  }, []);
+
+  const loadAuditLogs = useCallback(async () => {
+    try {
+      const data = await api.getAuditLogs({ perPage: 100 });
+      if (data && data.data) {
+        const mapped = data.data.map(log => {
+          const dateStr = new Date(log.created_at).toLocaleString("id-ID", {
+            timeZone: "Asia/Jakarta",
+            hour: "2-digit",
+            minute: "2-digit"
+          }) + " WIB";
+          
+          return [
+            dateStr,
+            log.user_name || "Sistem",
+            log.module,
+            log.activity,
+            log
+          ];
+        });
+        setAuditRows(mapped);
+      }
+    } catch (e) {
+      console.error("Gagal memuat audit log", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    async function loadMe() {
+      try {
+        const data = await api.getMe();
+        if (data && data.user) {
+          setCurrentUser(data.user);
+          const mappedRole = resolveRoleName(data.user.role_code);
+          setRole(mappedRole);
+          setLoggedIn(true);
+        }
+      } catch (error) {
+        localStorage.removeItem("token");
+      }
+    }
+    loadMe();
+  }, []);
+
+  useEffect(() => {
+    if (loggedIn && role === "Administrator") {
+      loadUsers();
+      loadAuditLogs();
+    }
+  }, [loggedIn, role, loadUsers, loadAuditLogs]);
+
+  useEffect(() => {
+    function handleUnauthorized() {
+      setLoggedIn(false);
+      setCurrentUser(null);
+      setView("Dashboard");
+    }
+    window.addEventListener("unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("unauthorized", handleUnauthorized);
+    };
+  }, []);
+
+  const config = useMemo(() => {
+    const base = roleConfig[role] || roleConfig.User;
+    return {
+      ...base,
+      name: currentUser ? currentUser.full_name : base.name
+    };
+  }, [role, currentUser]);
+
   const utilityViews = ["Notifikasi", "Pengaturan Profil"];
   const currentView = config.nav.includes(view) || utilityViews.includes(view) ? view : "Dashboard";
   const sidebarNavItems = config.nav;
   const activeNavIndex = Math.max(sidebarNavItems.indexOf(currentView), 0);
   const unreadCount = notifications.filter((item) => item[2]).length;
 
-  function login(event) {
+  async function login(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setRole(resolveDemoRole(form.get("username")) || role);
+    const username = form.get("username");
+    const password = form.get("password");
     setErrors({});
-    setLoggedIn(true);
+    try {
+      const data = await api.login(username, password);
+      if (data && data.user) {
+        setCurrentUser(data.user);
+        const mappedRole = resolveRoleName(data.user.role_code);
+        setRole(mappedRole);
+        setLoggedIn(true);
+        setView("Dashboard");
+      }
+    } catch (error) {
+      setErrors({ form: error.message || "Login gagal. Username atau password salah." });
+    }
+  }
+
+  async function logout() {
+    setProfileOpen(false);
+    try {
+      await api.logout();
+    } catch (e) {
+      console.error("Logout error", e);
+    }
+    localStorage.removeItem("token");
+    setLoggedIn(false);
+    setCurrentUser(null);
     setView("Dashboard");
   }
 
@@ -204,14 +329,44 @@ export default function Home() {
     setConfirm({ title: "Ajuan terkirim", body: `${request.nomor} sudah masuk ke portal operator dengan status Ajuan Baru.` });
   }
 
-  function createUser(user) {
-    setUserRows((current) => {
-      const nextNumber = current.length + 1;
-      const id = `USR-${String(nextNumber).padStart(3, "0")}`;
-      return [[id, user.name, user.role, user.unit || user.jabatan || "-", user.status], ...current];
-    });
-    setConfirm({ title: "User tersimpan", body: `${user.name} sudah ditambahkan ke daftar pengguna.` });
+  async function createUser(user) {
+    try {
+      const payload = {
+        fullName: user.name,
+        username: user.username,
+        email: user.email,
+        password: user.password,
+        role: user.role,
+        unit: user.unit,
+        position: user.jabatan,
+        status: user.status === "Aktif" ? "aktif" : "nonaktif"
+      };
+      await api.createUser(payload);
+      loadUsers();
+      setConfirm({ title: "User tersimpan", body: `${user.name} sudah ditambahkan ke daftar pengguna.` });
+    } catch (error) {
+      setConfirm({ title: "Gagal menyimpan", body: error.message });
+    }
   }
+
+  const handleDeleteUser = async (id, name) => {
+    try {
+      await api.deleteUser(id);
+      loadUsers();
+      setConfirm({ title: "User terhapus", body: `${name} telah berhasil dinonaktifkan.` });
+    } catch (error) {
+      setConfirm({ title: "Gagal menghapus", body: error.message });
+    }
+  };
+
+  const handleResetPassword = async (id, name) => {
+    try {
+      await api.resetPassword(id, "Reset123!");
+      setConfirm({ title: "Password direset", body: `Password untuk ${name} telah berhasil direset ke 'Reset123!'.` });
+    } catch (error) {
+      setConfirm({ title: "Gagal mereset", body: error.message });
+    }
+  };
 
   if (!loggedIn) {
     return (
@@ -335,7 +490,7 @@ export default function Home() {
                   <LineIcon name="settings" />
                   Pengaturan Profil
                 </button>
-                <button type="button" className="profileDropdownItem logout" role="menuitem" onClick={() => { setProfileOpen(false); setLoggedIn(false); }}>
+                <button type="button" className="profileDropdownItem logout" role="menuitem" onClick={logout}>
                   <LineIcon name="logout" />
                   Keluar
                 </button>
@@ -356,7 +511,20 @@ export default function Home() {
           {currentView === "Arsip" && <ArchiveHome setConfirm={setConfirm} />}
           {currentView === "Backup" && <AdminBackup setConfirm={setConfirm} />}
           {["Konsep Surat", "Status Ajuan", "Surat Keluar", "Disposisi", "Arsip Digital", "Pengguna", "Audit Trail"].includes(currentView) && (
-            <ModuleView view={currentView} query={query} setQuery={setQuery} onSubmit={submitModule} errors={errors} setConfirm={setConfirm} userRows={userRows} onCreateUser={createUser} />
+            <ModuleView
+              view={currentView}
+              query={query}
+              setQuery={setQuery}
+              onSubmit={submitModule}
+              errors={errors}
+              setConfirm={setConfirm}
+              userRows={userRows}
+              onCreateUser={createUser}
+              auditRows={auditRows}
+              onUserDelete={handleDeleteUser}
+              onUserResetPassword={handleResetPassword}
+              onAuditReviewSuccess={loadAuditLogs}
+            />
           )}
         </section>
       </section>
@@ -692,22 +860,80 @@ function PimpinanDashboard({ setView }) {
 }
 
 function AdminDashboard({ setView }) {
+  const [usersCount, setUsersCount] = useState(0);
+  const [activeUsersCount, setActiveUsersCount] = useState(0);
+  const [auditTodayCount, setAuditTodayCount] = useState(0);
+  const [lastBackupText, setLastBackupText] = useState("-");
+  const [recentUsers, setRecentUsers] = useState([]);
+  const [recentAudits, setRecentAudits] = useState([]);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const usersRes = await api.getUsers({ perPage: 5 });
+        if (usersRes && usersRes.data) {
+          setRecentUsers(usersRes.data);
+          setUsersCount(usersRes.meta?.totalCount || usersRes.data.length);
+        }
+
+        const allUsersRes = await api.getUsers({ perPage: 100 });
+        if (allUsersRes && allUsersRes.data) {
+          const activeCount = allUsersRes.data.filter(u => u.status === "aktif").length;
+          setActiveUsersCount(activeCount);
+        }
+
+        const auditRes = await api.getAuditLogs({ perPage: 10 });
+        if (auditRes && auditRes.data) {
+          const today = new Date().toDateString();
+          const todayCount = auditRes.data.filter(log => new Date(log.created_at).toDateString() === today).length;
+          setAuditTodayCount(todayCount);
+
+          const mappedAudits = auditRes.data.slice(0, 5).map(log => {
+            const timeStr = new Date(log.created_at).toLocaleString("id-ID", {
+              timeZone: "Asia/Jakarta",
+              hour: "2-digit",
+              minute: "2-digit"
+            }) + " WIB";
+            return [timeStr, log.user_name || "Sistem", log.module, log.activity];
+          });
+          setRecentAudits(mappedAudits);
+        }
+
+        const backupsRes = await api.getBackups({ perPage: 5 });
+        if (backupsRes && backupsRes.backups) {
+          const successBackups = backupsRes.backups.filter(b => b.status === "success");
+          if (successBackups.length > 0) {
+            const lastTime = new Date(successBackups[0].executed_at).toLocaleString("id-ID", {
+              timeZone: "Asia/Jakarta",
+              hour: "2-digit",
+              minute: "2-digit"
+            }) + " WIB";
+            setLastBackupText(lastTime);
+          }
+        }
+      } catch (err) {
+        console.error("Gagal mengambil data dashboard admin:", err);
+      }
+    }
+    fetchData();
+  }, []);
+
+  const resolveRoleLabel = (roleCode) => {
+    const map = {
+      administrator: "Administrator",
+      operator: "Operator",
+      pimpinan: "Pimpinan",
+      user: "User",
+      pegawai: "Pegawai"
+    };
+    return map[roleCode] || roleCode;
+  };
+
   const cards = [
-    ["Total Pengguna", "48", "43 akun aktif", "user", "blue", "Pengguna"],
+    ["Total Pengguna", String(usersCount), `${activeUsersCount} akun aktif`, "user", "blue", "Pengguna"],
     ["Role Sistem", "5", "RBAC dasar aktif", "shield", "purple", "Pengguna"],
-    ["Audit Hari Ini", "129", "Aktivitas tercatat", "clock", "orange", "Audit Trail"],
-    ["Backup", "03:00", "Terakhir berhasil", "upload", "green", "Backup"]
-  ];
-  const userRows = [
-    ["USR-001", "Rina Operator", "Operator", "Tata Usaha", "Aktif"],
-    ["USR-002", "Dewi Pimpinan", "Pimpinan", "Kepala Bagian", "Aktif"],
-    ["USR-003", "Budi Santoso", "User", "Kepegawaian", "Aktif"],
-    ["USR-004", "Sari Pegawai", "Pegawai", "Akademik", "Aktif"]
-  ];
-  const auditItems = [
-    ["10:42 WIB", "Rina Operator", "Surat Masuk", "Teruskan surat AG-2026-041"],
-    ["10:21 WIB", "Budi Santoso", "Ajuan Surat", "Kirim ajuan AJ-2026-0007"],
-    ["09:55 WIB", "Admin Sistem", "Pengguna", "Ubah status pengguna"]
+    ["Audit Hari Ini", String(auditTodayCount), "Aktivitas tercatat", "clock", "orange", "Audit Trail"],
+    ["Backup", lastBackupText, "Terakhir berhasil", "upload", "green", "Backup"]
   ];
 
   return (
@@ -737,9 +963,14 @@ function AdminDashboard({ setView }) {
           <table className="dashboardTable adminUserTable">
             <thead><tr><th>ID</th><th>Nama</th><th>Role</th><th>Unit Kerja</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
-              {userRows.map((row) => (
-                <tr key={row[0]}>
-                  <td>{row[0]}</td><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td><td><Status text={row[4]} /></td><td><button className="viewBtn" aria-label={`Detail ${row[1]}`}><LineIcon name="eye" /></button></td>
+              {recentUsers.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.id.substring(0, 8)}...</td>
+                  <td>{u.full_name}</td>
+                  <td>{resolveRoleLabel(u.role)}</td>
+                  <td>{u.unit || "-"}</td>
+                  <td><Status text={u.status === "aktif" ? "Aktif" : "Nonaktif"} /></td>
+                  <td><button className="viewBtn" onClick={() => setView("Pengguna")} aria-label={`Detail ${u.full_name}`}><LineIcon name="eye" /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -749,7 +980,7 @@ function AdminDashboard({ setView }) {
         <article className="dashPanel notificationsPanel">
           <PanelHeader title="Audit Terbaru" action="Lihat semua" onClick={() => setView("Audit Trail")} />
           <div className="adminAuditList">
-            {auditItems.map(([time, actor, module, action]) => (
+            {recentAudits.map(([time, actor, module, action]) => (
               <div className="adminAuditItem" key={`${time}-${action}`}>
                 <span><LineIcon name="clock" /></span>
                 <div><strong>{action}</strong><small>{time} - {actor} - {module}</small></div>
@@ -2325,7 +2556,48 @@ function getOutgoingLetterDetail(row) {
 }
 
 function getAuditTrailDetail(row) {
-  const [time, actor, module, activity] = row;
+  const [time, actor, module, activity, log] = row;
+  if (log) {
+    let payloadArr = [];
+    if (log.payload) {
+      try {
+        if (typeof log.payload === "object") {
+          payloadArr = Object.entries(log.payload).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`);
+        } else {
+          payloadArr = [String(log.payload)];
+        }
+      } catch (e) {
+        payloadArr = ["Gagal mem-parse data payload"];
+      }
+    }
+    
+    return {
+      time,
+      actor,
+      module,
+      activity,
+      id: log.id,
+      date: new Date(log.created_at).toLocaleDateString("id-ID", {
+        timeZone: "Asia/Jakarta",
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      }),
+      ipAddress: log.ip_address || "127.0.0.1",
+      device: log.user_agent || "Browser / Client",
+      result: log.status || "success",
+      target: log.module,
+      description: log.activity,
+      payload: payloadArr,
+      notes: log.notes || "-",
+      review_status: log.review_status || null,
+      review_notes: log.review_notes || null,
+      reviewed_at: log.reviewed_at ? new Date(log.reviewed_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : null,
+      reviewed_by_name: log.reviewed_by_name || null
+    };
+  }
+
   const detailMap = {
     "10:42 WIB-Rina Operator": {
       id: "AUD-2026-0518-1042",
@@ -2376,15 +2648,39 @@ function getAuditTrailDetail(row) {
   };
 }
 
-function ModuleView({ view, query, setQuery, onSubmit, errors, setConfirm, userRows, onCreateUser }) {
+function ModuleView({
+  view,
+  query,
+  setQuery,
+  onSubmit,
+  errors,
+  setConfirm,
+  userRows,
+  onCreateUser,
+  auditRows,
+  onUserDelete,
+  onUserResetPassword,
+  onAuditReviewSuccess
+}) {
   const [openForms, setOpenForms] = useState({});
   const [dispositionAction, setDispositionAction] = useState(null);
   const [outgoingAction, setOutgoingAction] = useState(null);
   const [auditAction, setAuditAction] = useState(null);
-  const sourceRows = view === "Pengguna" ? userRows : (rows[view] || rows["Ajuan Surat"]);
-  const data = useMemo(() => sourceRows.filter((row) => row.join(" ").toLowerCase().includes(query.toLowerCase())), [query, sourceRows]);
+  const sourceRows = view === "Pengguna" ? userRows : view === "Audit Trail" ? (auditRows || []) : (rows[view] || rows["Ajuan Surat"]);
+  
+  const data = useMemo(() => {
+    return sourceRows.filter((row) => {
+      const stringified = row.map(cell => {
+        if (typeof cell === "object" && cell !== null) return "";
+        return String(cell);
+      }).join(" ");
+      return stringified.toLowerCase().includes(query.toLowerCase());
+    });
+  }, [query, sourceRows]);
+
   const readOnlyList = view === "Disposisi" || view === "Audit Trail";
   const formVisible = !readOnlyList && view !== "Pengguna" && (view !== "Surat Keluar" || openForms[view]);
+  
   const handleAddData = () => {
     if (view === "Pengguna") {
       setOpenForms((current) => ({ ...current, [view]: true }));
@@ -2440,7 +2736,17 @@ function ModuleView({ view, query, setQuery, onSubmit, errors, setConfirm, userR
     if (auditAction.mode === "detail") {
       return <AuditTrailDetail detail={detail} onBack={() => setAuditAction(null)} />;
     }
-    return <AuditTrailReview detail={detail} onBack={() => setAuditAction(null)} setConfirm={setConfirm} />;
+    return (
+      <AuditTrailReview
+        detail={detail}
+        onBack={() => setAuditAction(null)}
+        setConfirm={setConfirm}
+        onSaveSuccess={() => {
+          onAuditReviewSuccess?.();
+          setAuditAction(null);
+        }}
+      />
+    );
   }
 
   return (
@@ -2460,6 +2766,8 @@ function ModuleView({ view, query, setQuery, onSubmit, errors, setConfirm, userR
           onProcess={view === "Disposisi" ? (row) => setDispositionAction({ mode: "process", row }) : view === "Surat Keluar" ? (row) => setOutgoingAction({ mode: "process", row }) : null}
           onAuditDetail={view === "Audit Trail" ? (row) => setAuditAction({ mode: "detail", row }) : null}
           onAuditReview={view === "Audit Trail" ? (row) => setAuditAction({ mode: "review", row }) : null}
+          onUserDelete={onUserDelete}
+          onUserResetPassword={onUserResetPassword}
         />
       </article>
       {formVisible && <FormPanel view={view} errors={errors} onSubmit={onSubmit} onCancel={view === "Surat Keluar" ? () => setOpenForms((current) => ({ ...current, [view]: false })) : null} />}
@@ -2475,9 +2783,12 @@ function AdminUserCreate({ onCancel, onCreateUser }) {
     const role = String(form.get("role") || "").trim();
     const status = String(form.get("status") || "Aktif").trim();
     const unit = String(form.get("unit") || "").trim();
+    const username = String(form.get("username") || "").trim();
+    const email = String(form.get("email") || "").trim();
+    const password = String(form.get("password") || "").trim();
     const jabatan = String(form.get("jabatan") || "").trim();
-    if (!name || !role) return;
-    onCreateUser({ name, role, status, unit, jabatan });
+    if (!name || !role || !username || !password) return;
+    onCreateUser({ name, role, status, unit, username, email, password, jabatan });
   }
 
   return (
@@ -2625,7 +2936,27 @@ function AuditTrailDetail({ detail, onBack }) {
   );
 }
 
-function AuditTrailReview({ detail, onBack, setConfirm }) {
+function AuditTrailReview({ detail, onBack, setConfirm, onSaveSuccess }) {
+  const [status, setStatus] = useState(detail.review_status || "valid");
+  const [notes, setNotes] = useState(detail.review_notes || "");
+
+  const handleSave = async () => {
+    try {
+      await api.reviewAuditLog(detail.id, status, notes);
+      onSaveSuccess?.();
+    } catch (e) {
+      alert("Gagal menyimpan tinjauan audit: " + e.message);
+    }
+  };
+
+  const confirmSave = () => {
+    setConfirm({
+      title: "Simpan tinjauan audit?",
+      body: `${detail.id} akan ditandai sudah diperiksa dan catatan administrator dicatat di audit trail.`,
+      onConfirm: handleSave
+    });
+  };
+
   return (
     <section className="incomingPage dispositionDetailPage">
       <header className="dispositionCreateHeader">
@@ -2659,39 +2990,53 @@ function AuditTrailReview({ detail, onBack, setConfirm }) {
                 <small>Aktivitas</small>
                 <strong>{detail.activity}</strong>
                 <p>{detail.description}</p>
+                {detail.payload && detail.payload.length > 0 && (
+                  <div style={{ marginTop: "10px" }}>
+                    <small style={{ display: "block", marginBottom: "4px" }}>Payload Details:</small>
+                    <ul style={{ paddingLeft: "16px", margin: 0, fontSize: "0.9em", color: "#666" }}>
+                      {detail.payload.map((p, idx) => <li key={idx}>{p}</li>)}
+                    </ul>
+                  </div>
+                )}
               </div>
               <label className="dispositionTextArea">
                 Catatan Administrator
-                <textarea rows={5} placeholder="Tuliskan hasil pemeriksaan, anomali, atau tindak lanjut keamanan bila diperlukan." />
+                <textarea
+                  rows={5}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Tuliskan hasil pemeriksaan, anomali, atau tindak lanjut keamanan bila diperlukan."
+                />
               </label>
             </section>
 
             <section className="dispositionFormCard dispositionMetaForm">
               <label>
                 Status Pemeriksaan
-                <select defaultValue="valid">
+                <select value={status} onChange={(e) => setStatus(e.target.value)}>
                   <option value="valid">Valid</option>
                   <option value="perlu_tindak_lanjut">Perlu Tindak Lanjut</option>
                   <option value="anomali">Anomali</option>
                 </select>
               </label>
               <label>
-                Prioritas
-                <select defaultValue="normal">
-                  <option value="normal">Normal</option>
-                  <option value="penting">Penting</option>
-                  <option value="segera">Segera</option>
-                </select>
-              </label>
-              <label>
                 Reviewer
-                <input defaultValue="Admin Sistem" />
+                <input value={detail.reviewed_by_name || detail.actor || "Admin Sistem"} readOnly />
               </label>
             </section>
 
+            {detail.reviewed_at && (
+              <section className="dispositionFormCard">
+                <h2><LineIcon name="check" /> Riwayat Review</h2>
+                <p style={{ margin: 0, fontSize: "0.95em" }}>
+                  Ditinjau oleh <strong>{detail.reviewed_by_name || "Admin"}</strong> pada {detail.reviewed_at}
+                </p>
+              </section>
+            )}
+
             <div className="dispositionSubmitBar">
               <button type="button" className="softBtn" onClick={() => setConfirm({ title: "Export bukti audit?", body: `Ringkasan ${detail.id} akan dibuat untuk kebutuhan pemeriksaan.` })}><LineIcon name="upload" /> Export Bukti</button>
-              <button type="button" className="primaryBtn" onClick={() => setConfirm({ title: "Simpan tinjauan audit?", body: `${detail.id} akan ditandai sudah diperiksa dan catatan administrator dicatat di audit trail.` })}><LineIcon name="check" /> Simpan Tinjauan</button>
+              <button type="button" className="primaryBtn" onClick={confirmSave}><LineIcon name="check" /> Simpan Tinjauan</button>
             </div>
           </form>
         </div>
@@ -2883,36 +3228,80 @@ function Filters({ query, setQuery }) {
   );
 }
 
-function DataTable({ heads, data, setConfirm, view, onDetail, onProcess, onAuditDetail, onAuditReview }) {
+function DataTable({
+  heads,
+  data,
+  setConfirm,
+  view,
+  onDetail,
+  onProcess,
+  onAuditDetail,
+  onAuditReview,
+  onUserDelete,
+  onUserResetPassword
+}) {
   return (
     <>
       <div className="tableScroll">
         <table>
           <thead><tr>{heads.map((head) => <th key={head}>{head}</th>)}<th>Aksi</th></tr></thead>
           <tbody>
-            {data.map((row) => (
-              <tr key={row[0]}>
-                {row.map((cell, index) => <td key={`${row[0]}-${index}`}>{index === row.length - 1 ? <Status text={cell} /> : cell}</td>)}
-                <td>
-                  {view === "Pengguna" ? (
-                    <div className="actions userActions">
-                      <button className="dangerSoftBtn" onClick={() => setConfirm({ title: "Hapus pengguna?", body: `${row[1]} akan dinonaktifkan menggunakan soft delete dan tidak dapat login.` })}>Hapus</button>
-                      <button className="softBtn" onClick={() => setConfirm({ title: "Reset password?", body: `Password awal baru untuk ${row[1]} akan dibuat dan aktivitas tercatat di audit trail.` })}>Reset Password</button>
-                    </div>
-                  ) : view === "Audit Trail" ? (
-                    <div className="actions">
-                      <button className="softBtn" onClick={() => onAuditDetail ? onAuditDetail(row) : setConfirm({ title: "Buka detail audit?", body: "Detail audit berisi waktu, user, modul, target, perangkat, dan perubahan data." })}>Detail</button>
-                      <button className="softBtn" onClick={() => onAuditReview ? onAuditReview(row) : setConfirm({ title: "Tinjau audit?", body: "Log audit akan ditinjau dan diberi catatan administrator." })}>Proses</button>
-                    </div>
-                  ) : (
-                    <div className="actions">
-                      <button className="softBtn" onClick={() => onDetail ? onDetail(row) : setConfirm({ title: "Buka detail?", body: "Detail berisi preview dokumen, status proses, dan riwayat aktivitas." })}>Detail</button>
-                      <button className="softBtn" onClick={() => onProcess ? onProcess(row) : setConfirm({ title: "Proses data?", body: "Status akan diperbarui, notifikasi dikirim, dan audit trail dicatat." })}>Proses</button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {data.map((row) => {
+              const displayCells = row.slice(0, heads.length);
+              return (
+                <tr key={row[0]}>
+                  {displayCells.map((cell, index) => (
+                    <td key={`${row[0]}-${index}`}>
+                      {index === heads.length - 1 && view !== "Audit Trail" ? (
+                        <Status text={cell} />
+                      ) : (
+                        cell
+                      )}
+                    </td>
+                  ))}
+                  <td>
+                    {view === "Pengguna" ? (
+                      <div className="actions userActions">
+                        <button
+                          className="dangerSoftBtn"
+                          onClick={() =>
+                            setConfirm({
+                              title: "Hapus pengguna?",
+                              body: `${row[1]} akan dinonaktifkan menggunakan soft delete dan tidak dapat login.`,
+                              onConfirm: () => onUserDelete?.(row[0], row[1])
+                            })
+                          }
+                        >
+                          Hapus
+                        </button>
+                        <button
+                          className="softBtn"
+                          onClick={() =>
+                            setConfirm({
+                              title: "Reset password?",
+                              body: `Password awal baru untuk ${row[1]} akan dibuat dan aktivitas tercatat di audit trail.`,
+                              onConfirm: () => onUserResetPassword?.(row[0], row[1])
+                            })
+                          }
+                        >
+                          Reset Password
+                        </button>
+                      </div>
+                    ) : view === "Audit Trail" ? (
+                      <div className="actions">
+                        <button className="softBtn" onClick={() => onAuditDetail ? onAuditDetail(row) : setConfirm({ title: "Buka detail audit?", body: "Detail audit berisi waktu, user, modul, target, perangkat, dan perubahan data." })}>Detail</button>
+                        <button className="softBtn" onClick={() => onAuditReview ? onAuditReview(row) : setConfirm({ title: "Tinjau audit?", body: "Log audit akan ditinjau dan diberi catatan administrator." })}>Proses</button>
+                      </div>
+                    ) : (
+                      <div className="actions">
+                        <button className="softBtn" onClick={() => onDetail ? onDetail(row) : setConfirm({ title: "Buka detail?", body: "Detail berisi preview dokumen, status proses, dan riwayat aktivitas." })}>Detail</button>
+                        <button className="softBtn" onClick={() => onProcess ? onProcess(row) : setConfirm({ title: "Proses data?", body: "Status akan diperbarui, notifikasi dikirim, dan audit trail dicatat." })}>Proses</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -3460,11 +3849,72 @@ function Reports({ setConfirm }) {
 }
 
 function AdminBackup({ setConfirm }) {
-  const backups = [
-    ["BKP-2026-0507-0300", "7 Mei 2026 03:00 WIB", "Admin Sistem", "success"],
-    ["BKP-2026-0506-0300", "6 Mei 2026 03:00 WIB", "Admin Sistem", "success"],
-    ["BKP-2026-0505-0300", "5 Mei 2026 03:00 WIB", "Admin Sistem", "success"]
-  ];
+  const [backups, setBackups] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [lastBackup, setLastBackup] = useState(null);
+
+  const fetchBackups = useCallback(async () => {
+    try {
+      const data = await api.getBackups();
+      if (data && data.backups) {
+        setBackups(data.backups);
+        if (data.backups.length > 0) {
+          const successBackups = data.backups.filter(b => b.status === "success");
+          if (successBackups.length > 0) {
+            setLastBackup(successBackups[0]);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Gagal mengambil data backup", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBackups();
+  }, [fetchBackups]);
+
+  const handleDownload = async (id, filename) => {
+    try {
+      await api.downloadBackup(id, filename);
+    } catch (e) {
+      alert("Gagal mengunduh file backup: " + e.message);
+    }
+  };
+
+  const triggerBackup = async () => {
+    setLoading(true);
+    try {
+      const res = await api.createBackup();
+      await fetchBackups();
+      setConfirm({
+        title: "Backup Selesai",
+        body: `Backup dengan ID ${res.backup?.id} berhasil dijalankan.`
+      });
+    } catch (e) {
+      setConfirm({
+        title: "Backup Gagal",
+        body: `Gagal menjalankan backup: ${e.message}`
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmBackup = () => {
+    setConfirm({
+      title: "Jalankan backup sekarang?",
+      body: "Database akan dibuatkan file backup, aktivitas dicatat di audit trail, dan status backup diperbarui.",
+      onConfirm: triggerBackup
+    });
+  };
+
+  const formatSize = (bytes) => {
+    if (!bytes) return "-";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
 
   return (
     <section className="adminBackupPage">
@@ -3473,9 +3923,9 @@ function AdminBackup({ setConfirm }) {
           <h1>Backup Data</h1>
           <p>Kelola backup database dan pastikan data penting tetap aman.</p>
         </div>
-        <button className="newAjuanBtn" onClick={() => setConfirm({ title: "Jalankan backup sekarang?", body: "Database akan dibuatkan file backup, aktivitas dicatat di audit trail, dan status backup diperbarui." })}>
+        <button className="newAjuanBtn" onClick={confirmBackup} disabled={loading}>
           <span><LineIcon name="upload" /></span>
-          Backup Sekarang
+          {loading ? "Memproses..." : "Backup Sekarang"}
         </button>
       </header>
 
@@ -3483,26 +3933,71 @@ function AdminBackup({ setConfirm }) {
         <article className="dashPanel adminBackupStatus">
           <h3>Status Backup</h3>
           <div className="backupHeroIcon"><LineIcon name="shield" /></div>
-          <strong>Backup terakhir berhasil</strong>
-          <p>7 Mei 2026 pukul 03:00 WIB. File tersimpan di storage lokal pengembangan.</p>
+          <strong>{lastBackup ? "Backup terakhir berhasil" : "Belum ada backup"}</strong>
+          <p>
+            {lastBackup
+              ? `${new Date(lastBackup.created_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} WIB. File tersimpan di storage lokal.`
+              : "Silakan lakukan backup manual pertama Anda."}
+          </p>
           <div className="backupStatusRows">
             <span>Jadwal otomatis <b>03:00 WIB</b></span>
             <span>Retensi file <b>30 hari</b></span>
-            <span>Ukuran terakhir <b>42.8 MB</b></span>
+            <span>Ukuran terakhir <b>{lastBackup ? formatSize(lastBackup.file_size) : "-"}</b></span>
           </div>
         </article>
 
         <article className="dashPanel adminBackupHistory">
-          <PanelHeader title="Riwayat Backup" action="Export log" onClick={() => setConfirm({ title: "Export log backup?", body: "Riwayat backup akan diekspor sesuai filter aktif." })} />
+          <PanelHeader
+            title="Riwayat Backup"
+            action="Export log"
+            onClick={() => setConfirm({ title: "Export log backup?", body: "Riwayat backup akan diekspor sesuai filter aktif." })}
+          />
           <table className="dashboardTable">
-            <thead><tr><th>ID Backup</th><th>Waktu</th><th>Pelaksana</th><th>Status</th><th>Aksi</th></tr></thead>
+            <thead>
+              <tr>
+                <th>ID Backup</th>
+                <th>Waktu</th>
+                <th>Pelaksana</th>
+                <th>Ukuran</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
             <tbody>
-              {backups.map(([id, time, actor, status]) => (
-                <tr key={id}>
-                  <td>{id}</td><td>{time}</td><td>{actor}</td><td><Status text={status === "success" ? "Berhasil" : "Gagal"} /></td>
-                  <td><button className="viewBtn" aria-label={`Download ${id}`}><LineIcon name="upload" /></button></td>
+              {backups.map((bkp) => {
+                const timeStr = new Date(bkp.created_at).toLocaleString("id-ID", {
+                  timeZone: "Asia/Jakarta"
+                }) + " WIB";
+                return (
+                  <tr key={bkp.id}>
+                    <td>{bkp.id.substring(0, 18)}...</td>
+                    <td>{timeStr}</td>
+                    <td>{bkp.created_by_name || "Sistem"}</td>
+                    <td>{formatSize(bkp.file_size)}</td>
+                    <td>
+                      <Status text={bkp.status === "success" ? "Berhasil" : "Gagal"} />
+                    </td>
+                    <td>
+                      {bkp.status === "success" && (
+                        <button
+                          className="viewBtn"
+                          aria-label={`Download ${bkp.id}`}
+                          onClick={() => handleDownload(bkp.id, bkp.filename)}
+                        >
+                          <LineIcon name="upload" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {backups.length === 0 && (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
+                    Belum ada riwayat backup.
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </article>
@@ -3584,7 +4079,9 @@ function Status({ text }) {
     aktif: "done",
     ditolak: "rejected",
     dikembalikan: "rejected",
-    rahasia: "rejected"
+    rahasia: "rejected",
+    berhasil: "done",
+    gagal: "rejected"
   };
   const kind = statusClassMap[key] || "waiting";
   return <span className={`status ${kind}`}>{text}</span>;

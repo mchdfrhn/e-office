@@ -5,6 +5,7 @@ import morgan from "morgan";
 import { config } from "./config.js";
 import { auditLogsRouter } from "./routes/audit-logs.js";
 import { authRouter } from "./routes/auth.js";
+import { backupsRouter } from "./routes/backups.js";
 import { healthRouter } from "./routes/health.js";
 import { metaRouter } from "./routes/meta.js";
 import { usersRouter } from "./routes/users.js";
@@ -22,6 +23,7 @@ export function createApp() {
   app.use("/api", metaRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/audit-logs", auditLogsRouter);
+  app.use("/api/backups", backupsRouter);
 
   app.use((_request, response) => {
     response.status(404).json({ message: "Data tidak ditemukan." });
