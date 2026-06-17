@@ -500,7 +500,7 @@ export default function Home() {
         </header>
         <section className="content">
           {currentView === "Dashboard" && (role === "Operator" ? <OperatorDashboard setView={setView} /> : role === "Pimpinan" ? <PimpinanDashboard setView={setView} /> : role === "Administrator" ? <AdminDashboard setView={setView} /> : <Dashboard config={config} role={role} setView={setView} />)}
-          {currentView === "Pengaturan Profil" && <ProfileSettings config={config} role={role} setConfirm={setConfirm} />}
+          {currentView === "Pengaturan Profil" && <ProfileSettings currentUser={currentUser} setCurrentUser={setCurrentUser} config={config} role={role} setConfirm={setConfirm} />}
           {currentView === "Notifikasi" && <Notifications />}
           {currentView === "Laporan" && <Reports setConfirm={setConfirm} />}
           {currentView === "Approval" && <Approval setConfirm={setConfirm} />}
@@ -2559,12 +2559,13 @@ function getAuditTrailDetail(row) {
   const [time, actor, module, activity, log] = row;
   if (log) {
     let payloadArr = [];
-    if (log.payload) {
+    const meta = log.payload || log.metadata;
+    if (meta) {
       try {
-        if (typeof log.payload === "object") {
-          payloadArr = Object.entries(log.payload).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`);
+        if (typeof meta === "object") {
+          payloadArr = Object.entries(meta).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`);
         } else {
-          payloadArr = [String(log.payload)];
+          payloadArr = [String(meta)];
         }
       } catch (e) {
         payloadArr = ["Gagal mem-parse data payload"];
@@ -2594,7 +2595,7 @@ function getAuditTrailDetail(row) {
       review_status: log.review_status || null,
       review_notes: log.review_notes || null,
       reviewed_at: log.reviewed_at ? new Date(log.reviewed_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : null,
-      reviewed_by_name: log.reviewed_by_name || null
+      reviewed_by_name: log.reviewer_name || log.reviewed_by_name || null
     };
   }
 
@@ -4010,7 +4011,7 @@ function Notifications() {
   return <section className="gridTwo"><article className="panel"><div className="rowBetween"><h3>Notifikasi Internal</h3><span className="status waiting">4 pesan</span></div><NoticeList /></article><article className="panel"><h3>Riwayat Status</h3><div className="timeline">{["Login berhasil", "Ajuan surat dikirim", "Surat diteruskan", "Disposisi dibuat"].map((item) => <div className="timelineItem" key={item}><i /><div><strong>{item}</strong><span>Tercatat di audit trail Asia/Jakarta</span></div></div>)}</div></article></section>;
 }
 
-function ProfileSettings({ config, role, setConfirm }) {
+function ProfileSettings({ currentUser, setCurrentUser, config, role, setConfirm }) {
   return (
     <section className="profileSettingsPage">
       <header className="dashboardTitle">
@@ -4021,10 +4022,10 @@ function ProfileSettings({ config, role, setConfirm }) {
       <section className="profileSettingsGrid">
         <article className="dashPanel profileSummaryCard">
           <span className="avatarFace large" />
-          <strong>{config.name}</strong>
+          <strong>{currentUser?.full_name || config.name}</strong>
           <small>{role}</small>
           <div className="profileMetaRows">
-            <span>Unit Kerja <b>{role === "User" ? "Kepegawaian" : role === "Operator" ? "Tata Usaha" : role === "Administrator" ? "Sistem Informasi" : "Pimpinan"}</b></span>
+            <span>Unit Kerja <b>{currentUser?.unit || (role === "User" ? "Kepegawaian" : role === "Operator" ? "Tata Usaha" : role === "Administrator" ? "Sistem Informasi" : "Pimpinan")}</b></span>
             <span>Status Akun <b>Aktif</b></span>
             <span>Zona Waktu <b>Asia/Jakarta</b></span>
           </div>
@@ -4034,14 +4035,51 @@ function ProfileSettings({ config, role, setConfirm }) {
           <h3>Informasi Profil</h3>
           <form className="profileForm" onSubmit={(event) => {
             event.preventDefault();
-            setConfirm({ title: "Simpan perubahan profil?", body: "Perubahan profil akan disimpan dan dicatat pada audit trail." });
+            const form = new FormData(event.currentTarget);
+            const fullName = form.get("name");
+            const email = form.get("email");
+            const unit = form.get("unit");
+            const position = currentUser?.position || "";
+
+            setConfirm({
+              title: "Simpan perubahan profil?",
+              body: "Perubahan profil akan disimpan dan dicatat pada audit trail.",
+              onConfirm: async () => {
+                try {
+                  const res = await api.updateUser(currentUser.id, {
+                    fullName,
+                    email,
+                    unit,
+                    position
+                  });
+                  if (res && res.data) {
+                    setCurrentUser(prev => ({
+                      ...prev,
+                      full_name: res.data.full_name,
+                      email: res.data.email,
+                      unit: res.data.unit,
+                      position: res.data.position
+                    }));
+                    setConfirm({
+                      title: "Profil Diperbarui",
+                      body: "Perubahan profil Anda berhasil disimpan."
+                    });
+                  }
+                } catch (err) {
+                  setConfirm({
+                    title: "Gagal Menyimpan",
+                    body: err.message || "Terjadi kesalahan saat menyimpan profil."
+                  });
+                }
+              }
+            });
           }}>
             <div className="formGrid">
-              <label>Nama Lengkap<input name="name" defaultValue={config.name} /></label>
+              <label>Nama Lengkap<input name="name" defaultValue={currentUser?.full_name || config.name} required /></label>
               <label>Role<input name="role" defaultValue={role} readOnly /></label>
-              <label>Email<input name="email" type="email" defaultValue={`${config.name.toLowerCase().replaceAll(" ", ".")}@stt-pu.ac.id`} /></label>
+              <label>Email<input name="email" type="email" defaultValue={currentUser?.email || ""} required /></label>
               <label>Nomor HP<input name="phone" defaultValue="0812-3456-7890" /></label>
-              <label>Unit Kerja<input name="unit" defaultValue={role === "User" ? "Kepegawaian" : "Tata Usaha"} /></label>
+              <label>Unit Kerja<input name="unit" defaultValue={currentUser?.unit || (role === "User" ? "Kepegawaian" : "Tata Usaha")} /></label>
               <label>Preferensi Notifikasi<select name="notification"><option>Email dan aplikasi</option><option>Aplikasi saja</option><option>Email saja</option></select></label>
             </div>
             <label className="profileFullField">Alamat<textarea name="address" defaultValue="Jl. D.I. Panjaitan Kav. 24, Jakarta Timur" /></label>

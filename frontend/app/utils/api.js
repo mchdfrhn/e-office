@@ -131,7 +131,7 @@ export const api = {
     return request(`/audit-logs?${params.toString()}`);
   },
 
-  async reviewAuditLog(id, { reviewStatus, reviewNotes }) {
+  async reviewAuditLog(id, reviewStatus, reviewNotes) {
     return request(`/audit-logs/${id}/review`, {
       method: "PUT",
       body: JSON.stringify({ status: reviewStatus, notes: reviewNotes }),
@@ -144,16 +144,54 @@ export const api = {
       page: String(page),
       perPage: String(perPage)
     });
-    return request(`/backups?${params.toString()}`);
+    const res = await request(`/backups?${params.toString()}`);
+    if (res && res.data) {
+      return {
+        ...res,
+        backups: res.data.map(b => ({
+          id: b.id,
+          backup_code: b.backup_code,
+          status: b.status,
+          file_size: b.file_size_bytes,
+          notes: b.notes,
+          created_at: b.executed_at,
+          executed_at: b.executed_at,
+          created_by_name: b.executor_name,
+          filename: b.original_name
+        }))
+      };
+    }
+    return res;
   },
 
   async createBackup() {
-    return request("/backups", {
+    const res = await request("/backups", {
       method: "POST",
     });
+    if (res && res.data) {
+      return {
+        ...res,
+        backup: {
+          id: res.data.id,
+          backup_code: res.data.backup_code,
+          status: res.data.status,
+          file_size: res.data.file_size_bytes,
+          notes: res.data.notes,
+          created_at: res.data.executed_at,
+          executed_at: res.data.executed_at,
+          created_by_name: res.data.executor_name
+        }
+      };
+    }
+    return res;
   },
 
   async downloadBackup(id, filename) {
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    if (!uuidRegex.test(id)) {
+      throw new Error("ID backup tidak valid.");
+    }
+
     const token = getToken();
     const headers = {};
     if (token) {
@@ -177,7 +215,8 @@ export const api = {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename || `backup-${id}.dump`;
+    const safeFilename = (filename || `backup-${id}.dump`).replace(/[^a-zA-Z0-9_.-]/g, "_");
+    a.download = safeFilename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

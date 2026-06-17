@@ -90,29 +90,43 @@ usersRouter.post("/", requireAuth, requireRole("administrator"), async (request,
   }
 });
 
-usersRouter.put("/:id", requireAuth, requireRole("administrator"), async (request, response, next) => {
+usersRouter.put("/:id", requireAuth, async (request, response, next) => {
   try {
     const { id } = request.params;
+    const isSelf = String(request.user.id) === String(id);
+    const isAdmin = request.user.role_code === "administrator";
+
+    if (!isAdmin && !isSelf) {
+      return response.status(403).json({ message: "Akses ditolak. Anda tidak memiliki izin untuk aksi ini." });
+    }
+
     const { fullName, email, role, unit, position, status } = request.body || {};
     
     const requiredErrors = {};
     if (!fullName) requiredErrors.fullName = "Nama lengkap wajib diisi.";
-    if (!role) requiredErrors.role = "Role wajib diisi.";
+    if (isAdmin && !isSelf && !role) requiredErrors.role = "Role wajib diisi.";
     if (Object.keys(requiredErrors).length > 0) {
       return response.status(422).json({ message: "Validasi gagal.", errors: requiredErrors });
     }
 
-    const rawRole = String(role).toLowerCase();
-    const roleCode = rawRole === "admin" ? "administrator" : rawRole;
-    const accountStatus = status ? (String(status).toLowerCase() === "nonaktif" ? "nonaktif" : "aktif") : undefined;
-
     const user = await withTransaction(async (client) => {
-      const userCheck = await client.query("SELECT id, full_name FROM users WHERE id = $1 AND deleted_at IS NULL", [id]);
-      if (!userCheck.rows[0]) {
+      const userCheck = await client.query(
+        `SELECT users.id, users.full_name, users.status, roles.code AS role_code, roles.name AS role_name
+         FROM users
+         JOIN roles ON roles.id = users.role_id
+         WHERE users.id = $1 AND users.deleted_at IS NULL`,
+        [id]
+      );
+      const existingUser = userCheck.rows[0];
+      if (!existingUser) {
         const error = new Error("User tidak ditemukan.");
         error.status = 404;
         throw error;
       }
+
+      const rawRole = String(isAdmin ? (role || existingUser.role_name) : existingUser.role_name);
+      const roleCode = rawRole.toLowerCase() === "admin" ? "administrator" : rawRole.toLowerCase();
+      const accountStatus = isAdmin ? (status ? String(status).toLowerCase() : existingUser.status) : existingUser.status;
 
       const roleResult = await client.query("SELECT id, code, name FROM roles WHERE code = $1 OR lower(name) = $1", [roleCode]);
       const selectedRole = roleResult.rows[0];
@@ -140,7 +154,7 @@ usersRouter.put("/:id", requireAuth, requireRole("administrator"), async (reques
              full_name = $3,
              email = NULLIF($4, ''),
              position = $5,
-             status = COALESCE($6, status),
+             status = $6,
              updated_at = now()
          WHERE id = $7 AND deleted_at IS NULL
          RETURNING id, full_name, username, email, position, status`,
