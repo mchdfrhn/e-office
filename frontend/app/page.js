@@ -169,6 +169,7 @@ export default function Home() {
   const [userRows, setUserRows] = useState(initialUsers);
   const [currentUser, setCurrentUser] = useState(null);
   const [auditRows, setAuditRows] = useState([]);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   function resolveRoleName(roleCode) {
     const map = {
@@ -237,6 +238,8 @@ export default function Home() {
         }
       } catch (error) {
         localStorage.removeItem("token");
+      } finally {
+        setCheckingAuth(false);
       }
     }
     loadMe();
@@ -367,6 +370,36 @@ export default function Home() {
       setConfirm({ title: "Gagal mereset", body: error.message });
     }
   };
+
+  if (checkingAuth) {
+    return (
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100vh",
+        backgroundColor: "#f8fafc",
+        fontFamily: "var(--font-sans, sans-serif)",
+        color: "#475569"
+      }}>
+        <div style={{
+          width: "40px",
+          height: "40px",
+          border: "4px solid #e2e8f0",
+          borderTopColor: "#3b82f6",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite"
+        }} />
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <p style={{ marginTop: "16px", fontWeight: "500" }}>Memuat E-Office...</p>
+      </div>
+    );
+  }
 
   if (!loggedIn) {
     return (
@@ -4154,7 +4187,16 @@ function ConfirmModal({ confirm, setConfirm }) {
       <section className="modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
         <h3>{confirm.title}</h3>
         <p>{confirm.body}</p>
-        <div className="actions end"><button className="ghostBtn" onClick={() => setConfirm(null)}>Batal</button><button className="primaryBtn" onClick={confirmAction}>Ya, lanjutkan</button></div>
+        <div className="actions end">
+          {confirm.onConfirm ? (
+            <>
+              <button className="ghostBtn" onClick={() => setConfirm(null)}>Batal</button>
+              <button className="primaryBtn" onClick={confirmAction}>Ya, lanjutkan</button>
+            </>
+          ) : (
+            <button className="primaryBtn" onClick={() => setConfirm(null)}>OK</button>
+          )}
+        </div>
       </section>
     </div>
   );
