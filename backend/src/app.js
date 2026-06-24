@@ -5,6 +5,7 @@ import morgan from "morgan";
 import { config } from "./config.js";
 import { auditLogsRouter } from "./routes/audit-logs.js";
 import { authRouter } from "./routes/auth.js";
+import { backupsRouter } from "./routes/backups.js";
 import { emailRouter } from "./routes/email.js";
 import { healthRouter } from "./routes/health.js";
 import { incomingLettersRouter } from "./routes/incoming-letters.js";
@@ -25,6 +26,7 @@ export function createApp() {
   app.use("/api/users", usersRouter);
   app.use("/api/incoming-letters", incomingLettersRouter);
   app.use("/api/audit-logs", auditLogsRouter);
+  app.use("/api/backups", backupsRouter);
   app.use("/api/email", emailRouter);
 
   app.use((_request, response) => {
