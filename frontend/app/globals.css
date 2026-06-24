@@ -493,6 +493,15 @@ textarea:focus {
   font-weight: 800;
 }
 
+.loginFieldHint {
+  display: block;
+  margin-top: 8px;
+  color: #5A5F99;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
 .primaryBtn,
 .ghostBtn,
 .softBtn,
@@ -2172,6 +2181,58 @@ textarea:focus {
   grid-template-columns: 1fr;
 }
 
+.approvalWideLayout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.approvalWideLayout .tableShell {
+  width: 100%;
+}
+
+.approvalTable {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.approvalTable th:nth-child(1),
+.approvalTable td:nth-child(1) {
+  width: 16%;
+}
+
+.approvalTable th:nth-child(2),
+.approvalTable td:nth-child(2) {
+  width: 19%;
+}
+
+.approvalTable th:nth-child(3),
+.approvalTable td:nth-child(3) {
+  width: 17%;
+}
+
+.approvalTable th:nth-child(4),
+.approvalTable td:nth-child(4) {
+  width: 27%;
+}
+
+.approvalTable th:nth-child(5),
+.approvalTable td:nth-child(5) {
+  width: 13%;
+}
+
+.approvalTable th:nth-child(6),
+.approvalTable td:nth-child(6) {
+  width: 120px;
+  text-align: right;
+}
+
+.approvalTable td {
+  overflow-wrap: anywhere;
+}
+
+.approvalTable td:last-child .softBtn {
+  min-width: 112px;
+}
+
 .tableScroll {
   overflow-x: auto;
 }
@@ -2381,6 +2442,130 @@ td {
 .modal h3,
 .modal p {
   margin-top: 0;
+}
+
+.attachmentPreviewModal {
+  width: min(860px, 94vw);
+  max-height: 88vh;
+  display: grid;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.attachmentPreviewHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.attachmentPreviewHeader h3 {
+  margin: 0 0 6px;
+  color: #282C70;
+}
+
+.attachmentPreviewHeader p {
+  margin: 0;
+  color: #5A5F99;
+  font-size: 13px;
+}
+
+.attachmentPreviewHeader .iconBtn {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.attachmentPreviewBody {
+  min-height: 420px;
+  max-height: 58vh;
+  overflow: auto;
+  border: 1px solid #d9e7ff;
+  border-radius: 12px;
+  background: #F6F8FC;
+}
+
+.attachmentPreviewBody iframe {
+  width: 100%;
+  height: 58vh;
+  min-height: 420px;
+  border: 0;
+  background: #ffffff;
+}
+
+.attachmentPreviewBody img {
+  display: block;
+  max-width: 100%;
+  max-height: 58vh;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.attachmentPreviewSheet {
+  min-height: 420px;
+  margin: 18px auto;
+  width: min(520px, calc(100% - 36px));
+  padding: 34px;
+  border: 1px solid #d9e7ff;
+  border-radius: 10px;
+  color: #445478;
+  background: #ffffff;
+  box-shadow: 0 18px 34px rgba(37, 58, 104, 0.09);
+}
+
+.attachmentPreviewSheet small {
+  color: #0C61F1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.attachmentPreviewSheet h4 {
+  margin: 14px 0 10px;
+  color: #282C70;
+  font-size: 20px;
+}
+
+.attachmentPreviewSheet p,
+.attachmentPreviewSheet span {
+  display: block;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.documentOpenActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.documentOpenActions button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px;
+}
+
+.documentOpenActions svg {
+  width: 16px;
+  height: 16px;
+}
+
+.documentOpenActions.compact {
+  margin-top: 0;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.documentOpenActions.compact button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
 }
 
 /* Final dashboard sidebar skin: keep it aligned with the dashboard reference. */
@@ -2934,6 +3119,88 @@ td {
   height: 18px;
 }
 
+.userAjuanHistory {
+  overflow-x: visible;
+}
+
+.userAjuanHistory .ajuanHistoryTable {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.userAjuanHistory .ajuanHistoryTable th,
+.userAjuanHistory .ajuanHistoryTable td {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.userAjuanHistory .ajuanHistoryTable th:first-child,
+.userAjuanHistory .ajuanHistoryTable td:first-child {
+  width: 7%;
+}
+
+.userAjuanHistory .ajuanHistoryTable th:nth-child(2),
+.userAjuanHistory .ajuanHistoryTable td:nth-child(2) {
+  width: 17%;
+}
+
+.userAjuanHistory .ajuanHistoryTable th:nth-child(3),
+.userAjuanHistory .ajuanHistoryTable td:nth-child(3) {
+  width: 20%;
+}
+
+.userAjuanHistory .ajuanHistoryTable th:nth-child(4),
+.userAjuanHistory .ajuanHistoryTable td:nth-child(4) {
+  width: 24%;
+}
+
+.userAjuanHistory .ajuanHistoryTable th:nth-child(5),
+.userAjuanHistory .ajuanHistoryTable td:nth-child(5) {
+  width: 13%;
+}
+
+.userAjuanHistory .ajuanHistoryTable th:nth-child(6),
+.userAjuanHistory .ajuanHistoryTable td:nth-child(6) {
+  width: 13%;
+}
+
+.userAjuanHistory .ajuanHistoryTable th:nth-child(7),
+.userAjuanHistory .ajuanHistoryTable td:nth-child(7) {
+  width: 6%;
+}
+
+.userAjuanHistory .letterCellButton {
+  white-space: normal;
+}
+
+.userAjuanHistory .ajuanTableFooter {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .userAjuanHistory {
+    padding: 16px;
+  }
+
+  .userAjuanHistory .ajuanHistoryTable th,
+  .userAjuanHistory .ajuanHistoryTable td {
+    padding: 10px 5px;
+    font-size: 12px;
+  }
+
+  .userAjuanHistory .ajuanHistoryTable .status {
+    min-width: 0;
+    padding: 4px 7px;
+    font-size: 11px;
+  }
+
+  .userAjuanHistory .viewBtn {
+    width: 32px;
+    height: 30px;
+  }
+}
+
 /* Final login page polish: match the supplied reference composition closely. */
 .loginShell {
   min-height: 100vh;
@@ -3400,6 +3667,24 @@ td {
   background: linear-gradient(100deg, #0C61F1 0%, #0036E2 100%);
 }
 
+.emailSyncBtn {
+  min-width: 158px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 10px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.emailSyncBtn svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
 .createAjuanBtn {
   background: #2E90F9;
   box-shadow: 0 12px 26px rgba(22, 135, 255, 0.28);
@@ -3640,6 +3925,7 @@ td {
 
 .stageItem.purple .stageIcon { color: white; background: linear-gradient(145deg, #0C61F1, #0036E2); }
 .stageItem.blue .stageIcon { color: #526aa3; background: white; border: 1px solid #96B3E9; }
+.stageItem.pending .stageIcon { color: #526aa3; background: white; border: 1px solid #96B3E9; }
 
 .stageItem b {
   top: 29px;
@@ -3737,6 +4023,164 @@ td {
   font-size: 13px;
   margin: 0 auto;
   justify-content: center;
+}
+
+.clickableHistoryRow {
+  cursor: pointer;
+}
+
+.clickableHistoryRow:hover {
+  background: #f7fbff;
+}
+
+.statusActionCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.revisionLockedSummary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.revisionInstructionNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #dbe6fb;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.revisionInstructionNotice svg {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: #0C61F1;
+}
+
+.revisionInstructionNotice div {
+  display: grid;
+  gap: 4px;
+}
+
+.revisionInstructionNotice strong {
+  color: #171b5f;
+  font-size: 14px;
+}
+
+.revisionInstructionNotice span {
+  color: #5f6fa3;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.operatorNumberField {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.operatorNumberField label {
+  color: #171b5f;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.operatorNumberField p {
+  max-width: 760px;
+  margin: 0;
+  color: #5f6fa3;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.operatorNumberField input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #d7deea;
+  border-radius: 10px;
+  color: #9aa3b8;
+  background: #f9fafc;
+  box-shadow: inset 0 1px 1px rgba(20, 42, 85, 0.04);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.revisionLockedItem {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #dbe6fb;
+  border-radius: 10px;
+  background: #fbfdff;
+}
+
+.revisionTitleSummary {
+  display: grid;
+  gap: 6px;
+  min-height: 74px;
+  padding: 14px;
+  border: 1px solid #dbe6fb;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.revisionLockedItem span,
+.revisionTitleSummary span {
+  color: #5f6fa3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.revisionLockedItem strong,
+.revisionTitleSummary strong {
+  color: #171b5f;
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.revisionTitleSummary {
+  min-height: 68px;
+}
+
+.revisionTitleSummary small {
+  color: #6d78a8;
+  font-size: 12px;
+}
+
+.letterCellButton {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #0C61F1;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.letterCellButton:hover,
+.letterCellButton:focus-visible {
+  color: #083f9e;
 }
 
 .ajuanTableFooter {
@@ -3901,44 +4345,89 @@ td {
 }
 
 .stageRail {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   margin-top: 34px;
   gap: 0;
 }
 
 .stageItem {
   min-height: 136px;
-  padding: 0 8px;
+  padding: 0 5px;
 }
 
 .stageIcon {
-  width: 56px;
-  height: 56px;
-  margin-bottom: 16px;
+  width: 50px;
+  height: 50px;
+  margin-bottom: 14px;
 }
 
 .stageIcon svg {
-  width: 26px;
-  height: 26px;
+  width: 23px;
+  height: 23px;
 }
 
 .stageItem b {
-  top: 27px;
-  right: -46%;
-  width: 92%;
+  top: 24px;
+  right: -43%;
+  width: 86%;
   height: 2px;
 }
 
 .stageItem strong {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.3;
 }
 
 .stageItem small {
-  max-width: 120px;
+  max-width: 112px;
   margin: 7px auto 0;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.35;
+}
+
+.stageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stageHeader h2 {
+  margin: 0;
+}
+
+.stageHeader span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #566895;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.stageItem.completed .stageIcon,
+.stageItem.active .stageIcon {
+  color: white;
+  border: 0;
+  background: linear-gradient(145deg, #0C61F1, #0036E2);
+  box-shadow: 0 14px 28px rgba(12, 97, 241, 0.22);
+}
+
+.stageItem.completed b {
+  background: linear-gradient(90deg, #0C61F1, #7ea9ff);
+}
+
+.stageItem.active strong {
+  color: #0036E2;
+}
+
+.stageItem.rejected .stageIcon {
+  background: linear-gradient(145deg, #ff766f, #e52828);
+  box-shadow: 0 14px 28px rgba(229, 40, 40, 0.2);
+}
+
+.stageItem.rejected strong {
+  color: #e52828;
 }
 
 .disposisiPage {
@@ -4173,6 +4662,18 @@ td {
 
 .ajuanCreateFields label:nth-child(3) {
   grid-column: 1 / -1;
+}
+
+.ajuanCreateFields .ajuanOtherTypeField {
+  grid-column: 1 / -1;
+}
+
+.ajuanOtherTypeField small {
+  flex: 0 0 100%;
+  color: #5A5F99;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .ajuanCreateFields input,
@@ -4507,6 +5008,416 @@ td {
   gap: 22px;
 }
 
+.incomingDashboardPage {
+  gap: 20px;
+}
+
+.incomingDashboardHeader {
+  margin-bottom: 0;
+}
+
+.incomingOverviewGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.incomingStatCard {
+  min-height: 118px;
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 74px;
+  align-items: center;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid #96B3E9;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 12px 28px rgba(37, 58, 104, 0.07);
+}
+
+.incomingStatIcon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #eef4ff;
+}
+
+.incomingStatIcon svg {
+  width: 38px;
+  height: 38px;
+}
+
+.incomingStatCard.blue .incomingStatIcon { color: #095CFF; background: #edf2ff; }
+.incomingStatCard.orange .incomingStatIcon { color: #ff7a1a; background: #fff0df; }
+.incomingStatCard.green .incomingStatIcon { color: #15b879; background: #e7f7ef; }
+.incomingStatCard.purple .incomingStatIcon { color: #8a4dff; background: #f2ecff; }
+
+.incomingStatCard small {
+  display: block;
+  color: #5A5F99;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.incomingStatCard strong {
+  display: block;
+  margin-top: 4px;
+  color: #282C70;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.sparkLine {
+  width: 70px;
+  height: 34px;
+  justify-self: end;
+  align-self: end;
+  border-bottom: 4px solid currentColor;
+  border-right: 4px solid currentColor;
+  clip-path: polygon(0 78%, 18% 78%, 18% 64%, 35% 64%, 35% 42%, 52% 42%, 52% 56%, 70% 56%, 70% 28%, 100% 28%, 100% 100%, 0 100%);
+  opacity: 0.95;
+}
+
+.incomingStatCard.blue .sparkLine { color: #095CFF; }
+.incomingStatCard.orange .sparkLine { color: #ff7a1a; }
+.incomingStatCard.green .sparkLine { color: #15b879; }
+.incomingStatCard.purple .sparkLine { color: #8a4dff; }
+
+.incomingDashboardGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(310px, 0.95fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.incomingListCard,
+.incomingInfoCard {
+  border-radius: 12px;
+}
+
+.incomingListHeader {
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.incomingListHeader .primaryBtn {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px;
+  border-radius: 8px;
+}
+
+.incomingListHeader .primaryBtn svg {
+  width: 17px;
+  height: 17px;
+}
+
+.incomingListCard table {
+  min-width: 760px;
+}
+
+.incomingListCard th,
+.incomingListCard td {
+  padding: 18px 10px;
+}
+
+.incomingListCard th:last-child,
+.incomingListCard td:last-child {
+  width: 64px;
+  text-align: right;
+}
+
+.incomingListCard .iconBtn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 9px;
+  color: #3364d8;
+  background: #ffffff;
+  border: 1px solid #96B3E9;
+}
+
+.incomingListCard .iconBtn svg {
+  width: 17px;
+  height: 17px;
+}
+
+.incomingSideStack {
+  display: grid;
+  gap: 18px;
+}
+
+.incomingInfoCard {
+  padding: 22px;
+  border: 1px solid #96B3E9;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 12px 28px rgba(37, 58, 104, 0.07);
+}
+
+.incomingInfoCard h3 {
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #282C70;
+  font-size: 15px;
+}
+
+.incomingInfoCard h3 svg {
+  width: 18px;
+  height: 18px;
+  color: #6b55ff;
+}
+
+.incomingInfoCard ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.incomingInfoCard li {
+  position: relative;
+  padding-left: 18px;
+  color: #2c3a72;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.incomingInfoCard li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0C61F1;
+}
+
+.incomingNoticeCard .linkBtn {
+  min-height: 0;
+  padding: 0;
+  color: #0C61F1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.incomingNoticeList {
+  display: grid;
+}
+
+.incomingNoticeItem {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto 8px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #d6e2fb;
+}
+
+.incomingNoticeItem:last-child {
+  border-bottom: 0;
+}
+
+.incomingNoticeIcon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+}
+
+.incomingNoticeIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.incomingNoticeIcon.blue { color: #095CFF; background: #edf2ff; }
+.incomingNoticeIcon.orange { color: #ff7a1a; background: #fff0df; }
+.incomingNoticeIcon.green { color: #15b879; background: #e7f7ef; }
+
+.incomingNoticeItem strong {
+  display: block;
+  color: #282C70;
+  font-size: 13px;
+}
+
+.incomingNoticeItem small {
+  display: block;
+  margin-top: 3px;
+  color: #456099;
+  font-size: 12px;
+}
+
+.incomingNoticeItem time {
+  color: #6a70a6;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.incomingNoticeItem i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0C61F1;
+}
+
+@media (max-width: 1180px) {
+  .incomingOverviewGrid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .incomingDashboardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .incomingOverviewGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .incomingStatCard {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .incomingStatCard .sparkLine {
+    display: none;
+  }
+
+  .incomingListHeader {
+    align-items: stretch;
+  }
+
+  .incomingListHeader .primaryBtn {
+    width: 100%;
+  }
+
+  .incomingNoticeItem {
+    grid-template-columns: 34px minmax(0, 1fr) 8px;
+  }
+
+  .incomingNoticeItem time {
+    grid-column: 2 / 3;
+  }
+}
+
+.incomingEmailActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.incomingEmailActions .softBtn,
+.incomingEmailActions .primaryBtn,
+.incomingPage .emailSyncBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.incomingEmailActions svg,
+.incomingPage .emailSyncBtn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.incomingEmailStats .ajuanStatusCard strong {
+  font-size: clamp(18px, 1.4vw, 28px);
+  overflow-wrap: anywhere;
+}
+
+.incomingEmailStats .ajuanStatusCard:first-child strong {
+  max-width: none;
+  font-size: 17px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.incomingEmailTable {
+  overflow: hidden;
+}
+
+.incomingEmailTable table {
+  min-width: 980px;
+}
+
+.incomingEmailTable th:nth-child(1),
+.incomingEmailTable td:nth-child(1) {
+  width: 150px;
+}
+
+.incomingEmailTable th:nth-child(2),
+.incomingEmailTable td:nth-child(2) {
+  width: 210px;
+}
+
+.incomingEmailTable th:nth-child(4),
+.incomingEmailTable td:nth-child(4) {
+  width: 170px;
+}
+
+.incomingEmailTable th:nth-child(6),
+.incomingEmailTable td:nth-child(6) {
+  width: 130px;
+}
+
+.incomingEmailTable th:nth-child(7),
+.incomingEmailTable td:nth-child(7) {
+  width: 118px;
+  text-align: right;
+}
+
+.incomingEmailTable td {
+  overflow-wrap: anywhere;
+}
+
+.incomingEmailTable td:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.incomingEmailTable .operatorActions {
+  display: table-cell;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.incomingEmailTable .operatorActions .softBtn {
+  min-width: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.incomingEmailTable .operatorActions .softBtn svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+
+.tableSubtext {
+  margin: 4px 0 0;
+  color: #5A5F99;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+
 .incomingPaper {
   display: grid;
   gap: 0;
@@ -4525,7 +5436,7 @@ td {
 .incomingTop {
   position: relative;
   min-height: 205px;
-  padding: 18px 18px 42px;
+  padding: 18px;
 }
 
 .incomingTo {
@@ -4575,6 +5486,10 @@ td {
   font-weight: 600;
 }
 
+.incomingFields label {
+  align-items: center;
+}
+
 .incomingFields input,
 .incomingBottom input,
 .incomingBottom textarea,
@@ -4593,10 +5508,9 @@ td {
 }
 
 .agendaField {
-  position: absolute;
-  right: 22px;
-  bottom: 18px;
+  position: static;
   width: min(330px, 38%);
+  margin: 10px 0 0 auto;
   display: grid;
   grid-template-columns: 110px 1fr;
   align-items: center;
@@ -4970,8 +5884,24 @@ td {
   color: #0C61F1;
 }
 
+.dispositionFlow p.completed {
+  color: #12a875;
+}
+
 .dispositionFlow p.active b {
   background: linear-gradient(135deg, #0a7b58, #19a974);
+}
+
+.dispositionFlow p.completed b {
+  background: linear-gradient(135deg, #0a7b58, #19a974);
+}
+
+.dispositionFlow p.rejected {
+  color: #c24135;
+}
+
+.dispositionFlow p.rejected b {
+  background: linear-gradient(135deg, #d94b3d, #a71d2a);
 }
 
 .detailPillList {
@@ -5159,8 +6089,12 @@ td {
 
 .incomingUploadFields {
   display: grid;
-  grid-template-columns: minmax(180px, 0.36fr) minmax(260px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
+}
+
+.incomingUploadFields .uploadField {
+  width: 100%;
 }
 
 .incomingUploadFields label {
@@ -5440,10 +6374,35 @@ td {
   text-align: center;
 }
 
+.uploadDropzone.hasFile {
+  border-style: solid;
+  border-color: #1c9d73;
+  background: #f2fbf7;
+}
+
+.uploadDropzone.hasFile span {
+  color: #1c9d73;
+}
+
+.uploadDropzone.hasFile b {
+  color: #0f6b4f;
+}
+
 .uploadDropzone em {
   color: #5A5F99;
   font-style: normal;
   font-weight: 600;
+}
+
+.uploadDropzone .uploadError {
+  grid-column: 1 / -1;
+  justify-self: center;
+  max-width: calc(100% - 28px);
+  margin-top: 4px;
+  color: #d94d54;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .uploadDropzone small,
@@ -5536,20 +6495,17 @@ td {
   color: #0C61F1;
 }
 
-.autoBadge {
-  min-height: 28px;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 0 10px;
+.archiveResetBtn {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.archiveResetBtn:hover {
   color: #0036E2;
-  background: #F6F8FC;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .archiveTable {
-  min-width: 1080px;
+  min-width: 980px;
   table-layout: auto;
 }
 
@@ -5570,13 +6526,144 @@ td {
 
 .archiveTable th:nth-child(3),
 .archiveTable td:nth-child(3) {
-  min-width: 280px;
+  min-width: 320px;
   white-space: normal;
 }
 
 .archiveTable th:nth-child(4),
 .archiveTable td:nth-child(4) {
   min-width: 150px;
+}
+
+.archiveTable th:nth-child(5),
+.archiveTable td:nth-child(5) {
+  min-width: 120px;
+}
+
+.archiveTable th:nth-child(6),
+.archiveTable td:nth-child(6) {
+  min-width: 130px;
+}
+
+.archivePagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-width: 980px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #E4ECFA;
+}
+
+.archivePageInfo,
+.archivePageSize,
+.archivePageControls,
+.archivePaginationRight {
+  display: inline-flex;
+  align-items: center;
+}
+
+.archivePaginationRight {
+  gap: 18px;
+  margin-left: auto;
+}
+
+.archivePageInfo {
+  gap: 6px;
+  min-height: 38px;
+  color: #5A5F99;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.archivePageInfo strong {
+  color: #282C70;
+}
+
+.archivePageSize {
+  gap: 8px;
+  color: #5A5F99;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.archivePageSize select {
+  width: auto;
+  min-width: 72px;
+  min-height: 38px;
+  border-radius: 8px;
+  padding: 8px 30px 8px 12px;
+  background-color: #fff;
+}
+
+.archivePageControls {
+  gap: 6px;
+}
+
+.archivePageNav,
+.archivePageNumber {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #CFE0FA;
+  border-radius: 8px;
+  color: #282C70;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.archivePageNav:disabled,
+.archivePageNumber:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.archivePageNumber.active {
+  border-color: #0C61F1;
+  color: #fff;
+  background: #0C61F1;
+  box-shadow: 0 10px 22px rgba(12, 97, 241, 0.22);
+}
+
+.archivePageEllipsis {
+  min-width: 24px;
+  color: #5A5F99;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .archivePagination {
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .archivePageInfo,
+  .archivePageSize,
+  .archivePageControls,
+  .archivePaginationRight {
+    width: 100%;
+  }
+
+  .archivePageSize {
+    justify-content: space-between;
+  }
+
+  .archivePaginationRight {
+    justify-content: space-between;
+    margin-left: 0;
+  }
+
+  .archivePageControls {
+    justify-content: center;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
 }
 
 .operatorGrid {
@@ -5860,6 +6947,44 @@ td {
   box-shadow: 0 14px 34px rgba(37, 58, 104, 0.07);
 }
 
+.operatorAjuanStatusGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.operatorAjuanStatusGrid .ajuanStatusCard {
+  min-height: 132px;
+  gap: 14px;
+  padding: 18px;
+  align-items: center;
+}
+
+.operatorAjuanStatusGrid .icon3d {
+  width: 56px;
+  height: 56px;
+  flex-basis: 56px;
+}
+
+.operatorAjuanStatusGrid .icon3d svg {
+  width: 28px;
+  height: 28px;
+}
+
+.operatorAjuanStatusGrid .ajuanStatusCard small {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.operatorAjuanStatusGrid .ajuanStatusCard strong {
+  margin: 4px 0;
+  font-size: 30px;
+}
+
+.operatorAjuanStatusGrid .ajuanStatusCard p {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
 .ajuanHeroMeta {
   min-width: 158px;
   display: grid;
@@ -6129,7 +7254,7 @@ td {
 
 .requestDetailTop {
   display: grid;
-  grid-template-columns: minmax(230px, 1fr) auto minmax(320px, 1fr);
+  grid-template-columns: minmax(220px, 1fr) minmax(280px, auto) minmax(360px, 1fr);
   align-items: center;
   gap: 18px;
   padding: 0 4px;
@@ -6156,14 +7281,16 @@ td {
   align-items: center;
   justify-self: end;
   gap: 12px;
-  min-width: 320px;
+  width: min(100%, 420px);
+  min-width: 360px;
   padding: 4px 8px;
   border-radius: 999px;
 }
 
 .requestMeta .status {
   flex: 0 0 auto;
-  min-width: 104px;
+  min-width: 132px;
+  max-width: 150px;
   white-space: nowrap;
   text-align: center;
   line-height: 1.15;
@@ -6190,6 +7317,11 @@ td {
   white-space: nowrap;
 }
 
+.requestMeta > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .requestMeta b {
   flex: 0 0 auto;
   width: 42px;
@@ -6204,6 +7336,17 @@ td {
 .requestMeta svg {
   width: 22px;
   height: 22px;
+}
+
+@media (max-width: 1240px) {
+  .requestDetailTop {
+    grid-template-columns: minmax(220px, 1fr) minmax(280px, auto);
+  }
+
+  .requestMeta {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
 }
 
 .requestLayout {
@@ -6292,6 +7435,15 @@ td {
   border-bottom: 0;
 }
 
+.applicantInfoGrid .detailItem:nth-last-child(-n + 2) {
+  border-bottom: 1px solid #e9eef7;
+}
+
+.applicantInfoGrid .detailItem:nth-child(3) {
+  grid-column: 1 / -1;
+  border-bottom: 0;
+}
+
 .requestInfoGrid .detailItem svg {
   grid-row: span 2;
   width: 38px;
@@ -6347,6 +7499,19 @@ td {
   border-bottom: 0;
 }
 
+.requestSubmissionGrid .detailItem:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.requestSubmissionGrid .detailItem:nth-last-child(2) {
+  grid-column: 1 / -1;
+  border-right: 0;
+}
+
+.requestSubmissionGrid .detailItem.description {
+  border-top: 1px solid #e9eef7;
+}
+
 .requestRows .detailItem svg {
   grid-row: span 2;
   width: 38px;
@@ -6394,6 +7559,33 @@ td {
   background: #F6F8FC;
   font-size: 16px;
   line-height: 1.7;
+}
+
+.rejectedDecisionCard {
+  border-color: rgba(217, 75, 61, 0.32);
+  background: linear-gradient(135deg, #fffafa 0%, #ffffff 100%);
+}
+
+.rejectedDecisionCard .requestMessage {
+  border-color: rgba(217, 75, 61, 0.22);
+  background: #fff4f3;
+}
+
+.rejectedDecisionCard .requestMessage svg,
+.rejectedDecisionCard .requestMessage h3 {
+  color: #c24135;
+}
+
+.rejectedDecisionCard .requestMessage p {
+  margin: 6px 0 0;
+  color: #5f3340;
+}
+
+.rejectedDecisionCard .requestMessage small {
+  display: block;
+  margin-top: 8px;
+  color: #7c4752;
+  font-weight: 700;
 }
 
 .requestMessage h3 {
@@ -6581,10 +7773,18 @@ td {
   background: #fff;
 }
 
+.successAction:disabled,
+.warningAction:disabled,
+.rejectAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  filter: grayscale(0.35);
+}
+
 .verificationProcess {
   display: grid;
   gap: 18px;
-  margin-top: -4px;
+  margin-top: 18px;
 }
 
 .verificationStepper {
@@ -6709,7 +7909,10 @@ td {
   font-weight: 800;
 }
 
-.verificationFields select {
+.verificationFields select,
+.verificationFields textarea,
+.verificationFields input[type="text"],
+.verificationFields input[type="file"] {
   min-height: 42px;
   width: 100%;
   border: 1px solid #96B3E9;
@@ -6721,10 +7924,168 @@ td {
   font-weight: 700;
 }
 
+.verificationFields input[type="file"] {
+  padding: 9px 12px;
+}
+
+.operatorFinalForm {
+  margin-top: 12px;
+}
+
+.operatorFinalForm .primaryBtn {
+  width: 100%;
+  min-height: 44px;
+  max-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 10px 20px rgba(12, 97, 241, 0.18);
+}
+
+.operatorFinalForm .primaryBtn svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+}
+
+.approvalUploadField {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.fieldLabelInline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  width: fit-content;
+  font-weight: 900;
+}
+
+.requiredMark {
+  color: #e54552;
+  font-weight: 900;
+}
+
+.approvalUploadBox {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  width: 100%;
+  min-height: 76px;
+  border: 1px solid #96B3E9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.approvalUploadBox input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.approvalUploadBox > span {
+  grid-row: span 2;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #0C61F1;
+  background: #F6F8FC;
+}
+
+.approvalUploadBox b {
+  min-width: 0;
+  color: #282C70;
+  font-size: 13px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.approvalUploadBox.hasFile {
+  border-color: #0C61F1;
+  background: #f8fbff;
+}
+
+.fieldHint,
+.approvalUploadBox small {
+  color: #5A5F99;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.verificationFields textarea {
+  min-height: 116px;
+  padding: 12px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.revisionRequestPanel {
+  display: grid;
+  gap: 18px;
+  margin-top: -4px;
+}
+
+.revisionNotice {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #ffd6b8;
+  border-radius: 12px;
+  color: #8a4b18;
+  background: #fff7ed;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.revisionNotice svg {
+  width: 18px;
+  height: 18px;
+  color: #ff7a1a;
+}
+
+.revisionNotice.rejectNotice {
+  border-color: #ffc8c8;
+  color: #8a1f2a;
+  background: #fff5f5;
+}
+
+.revisionNotice.rejectNotice svg {
+  color: #ff2d25;
+}
+
 .verificationActions {
   display: grid;
   grid-template-columns: 104px 1fr;
   gap: 10px;
+}
+
+.verificationActions.singleAction {
+  grid-template-columns: 1fr;
+}
+
+.approvalDecisionForm {
+  margin-top: 16px;
+}
+
+.activeDecision {
+  box-shadow: 0 0 0 3px rgba(12, 97, 241, 0.14), 0 10px 24px rgba(18, 109, 168, 0.2);
 }
 
 .verificationActions button {
@@ -7150,6 +8511,471 @@ td {
   height: 18px;
 }
 
+.ajuanDraftDetailPage {
+  gap: 12px;
+  max-width: 1280px;
+}
+
+.ajuanDraftDetailPage .dispositionCreateHeader {
+  align-items: end;
+  padding-right: 8px;
+}
+
+.ajuanDraftDetailPage .dispositionCreateHeader h1 {
+  margin: 14px 0 6px;
+  font-size: 1.55rem;
+}
+
+.ajuanDraftDetailPage .dispositionCreateHeader p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.ajuanDraftDetailPage .backLink {
+  font-size: 12px;
+}
+
+.ajuanDraftDetailPage .dispositionCreateGrid {
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 12px;
+}
+
+.ajuanDraftDetailPage .dispositionSourceCard,
+.ajuanDraftDetailPage .dispositionFormCard,
+.ajuanDraftDetailPage .dispositionPreview {
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.ajuanDraftDetailPage .dispositionMain {
+  display: grid;
+  gap: 10px;
+}
+
+.ajuanDraftDetailPage .dispositionSourceCard h2,
+.ajuanDraftDetailPage .dispositionFormCard h2,
+.ajuanDraftDetailPage .dispositionPreview h3 {
+  font-size: 14px;
+}
+
+.ajuanDraftDetailPage .dispositionSourceCard h2 svg,
+.ajuanDraftDetailPage .dispositionFormCard h2 svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ajuanDraftDetailPage .priority {
+  padding: 5px 9px;
+  font-size: 11px;
+}
+
+.ajuanDraftDetailPage .detailGrid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ajuanDraftDetailPage .detailItem {
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid #d9e7ff;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.ajuanDraftDetailPage .detailItem svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ajuanDraftDetailPage .detailItem span {
+  font-size: 10.5px;
+}
+
+.ajuanDraftDetailPage .detailItem strong {
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+  line-height: 1.28;
+}
+
+.ajuanDraftDetailPage .dispositionNoteBox {
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.ajuanDraftDetailPage .dispositionNoteBox small {
+  font-size: 10.5px;
+}
+
+.ajuanDraftDetailPage .dispositionNoteBox strong {
+  font-size: 13px;
+}
+
+.ajuanDraftDetailPage .dispositionNoteBox p {
+  margin-bottom: 0;
+  color: #445478;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ajuanDraftDetailPage .attachmentList {
+  border: 0;
+  gap: 8px;
+}
+
+.ajuanDraftDetailPage .requestAttachment {
+  min-height: 56px;
+  padding: 9px;
+  border: 1px solid #d9e7ff;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.ajuanDraftDetailPage .requestAttachment > span {
+  width: 34px;
+  height: 34px;
+}
+
+.ajuanDraftDetailPage .requestAttachment > span svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ajuanDraftDetailPage .requestAttachment strong {
+  font-size: 12.5px;
+}
+
+.ajuanDraftDetailPage .requestAttachment small {
+  font-size: 11px;
+}
+
+.ajuanDraftDetailPage .dispositionPreview {
+  top: 88px;
+  align-self: start;
+  gap: 10px;
+}
+
+.ajuanDraftDetailPage .dispositionFlow {
+  gap: 6px;
+}
+
+.ajuanDraftDetailPage .dispositionFlow p {
+  grid-template-columns: 22px 1fr;
+  min-height: 24px;
+  font-size: 11.5px;
+}
+
+.ajuanDraftDetailPage .dispositionFlow b {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
+
+.ajuanDraftDetailPage .dispositionSubmitBar {
+  justify-content: stretch;
+}
+
+.ajuanDraftDetailPage .dispositionSubmitBar button {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  justify-content: center;
+  white-space: normal;
+  line-height: 1.25;
+  font-size: 12px;
+}
+
+.ajuanDraftDetailPage .dispositionSubmitBar button svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+
+/* User draft detail polish. */
+.ajuanDraftDetailPage {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.ajuanDraftDetailPage .dispositionCreateHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.ajuanDraftDetailPage .dispositionCreateHeader > div {
+  min-width: 0;
+}
+
+.ajuanDraftDetailPage .dispositionCreateGrid {
+  grid-template-columns: minmax(0, 1fr) 280px;
+  align-items: start;
+  gap: 18px;
+}
+
+.ajuanDraftDetailPage .dispositionSourceCard,
+.ajuanDraftDetailPage .dispositionFormCard,
+.ajuanDraftDetailPage .dispositionPreview {
+  border-color: #b8ccff;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 36px rgba(29, 76, 160, 0.08);
+}
+
+.ajuanDraftDetailPage .rowBetween {
+  gap: 14px;
+}
+
+.ajuanDraftDetailPage .detailGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ajuanDraftDetailPage .detailItem {
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 3px 10px;
+}
+
+.ajuanDraftDetailPage .detailItem.wide {
+  grid-column: span 2;
+}
+
+.ajuanDraftDetailPage .detailItem svg {
+  grid-row: span 2;
+  padding: 8px;
+  border-radius: 8px;
+  color: #0C61F1;
+  background: #eef5ff;
+}
+
+.ajuanDraftDetailPage .dispositionFormCard {
+  display: grid;
+  gap: 12px;
+}
+
+.ajuanDraftDetailPage .attachmentList {
+  padding: 0;
+}
+
+.ajuanDraftDetailPage .requestAttachment {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  align-items: center;
+}
+
+.ajuanDraftDetailPage .dispositionPreview {
+  position: sticky;
+  top: 94px;
+}
+
+.ajuanDraftDetailPage .dispositionPreview h3 {
+  margin: 0 0 8px;
+}
+
+.ajuanDraftDetailPage .dispositionFlow p {
+  margin: 0;
+  color: #445478;
+}
+
+.ajuanDraftDetailPage .dispositionFlow p.active {
+  color: #0C61F1;
+  background: #eef5ff;
+}
+
+.ajuanDraftDetailPage .dispositionSubmitBar {
+  margin-top: 8px;
+}
+
+@media (max-width: 1180px) {
+  .ajuanDraftDetailPage .detailGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .revisionLockedSummary,
+  .revisionLockedItem {
+    grid-template-columns: 1fr;
+  }
+
+  .ajuanDraftDetailPage .dispositionCreateHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ajuanDraftDetailPage .dispositionCreateGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .ajuanDraftDetailPage .dispositionPreview {
+    position: static;
+  }
+}
+
+@media (max-width: 560px) {
+  .ajuanDraftDetailPage .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .ajuanDraftDetailPage .detailItem.wide {
+    grid-column: auto;
+  }
+}
+
+/* Draft detail scale-up while keeping the cleaned layout. */
+.ajuanDraftDetailPage {
+  max-width: 1480px;
+  gap: 18px;
+}
+
+.ajuanDraftDetailPage .backLink {
+  font-size: 14px;
+}
+
+.ajuanDraftDetailPage .dispositionCreateHeader h1 {
+  font-size: 2rem;
+}
+
+.ajuanDraftDetailPage .dispositionCreateHeader p {
+  font-size: 16px;
+}
+
+.ajuanDraftDetailPage .dispositionCreateGrid {
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 22px;
+}
+
+.ajuanDraftDetailPage .dispositionMain {
+  gap: 16px;
+}
+
+.ajuanDraftDetailPage .dispositionSourceCard,
+.ajuanDraftDetailPage .dispositionFormCard,
+.ajuanDraftDetailPage .dispositionPreview {
+  border-radius: 16px;
+  padding: 22px;
+}
+
+.ajuanDraftDetailPage .dispositionSourceCard h2,
+.ajuanDraftDetailPage .dispositionFormCard h2,
+.ajuanDraftDetailPage .dispositionPreview h3 {
+  font-size: 18px;
+}
+
+.ajuanDraftDetailPage .dispositionSourceCard h2 svg,
+.ajuanDraftDetailPage .dispositionFormCard h2 svg {
+  width: 21px;
+  height: 21px;
+}
+
+.ajuanDraftDetailPage .priority {
+  padding: 8px 13px;
+  font-size: 13px;
+}
+
+.ajuanDraftDetailPage .detailGrid {
+  margin-top: 18px;
+  gap: 12px;
+}
+
+.ajuanDraftDetailPage .detailItem {
+  min-height: 76px;
+  grid-template-columns: 42px 1fr;
+  gap: 5px 13px;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.ajuanDraftDetailPage .detailItem svg {
+  width: 20px;
+  height: 20px;
+  padding: 10px;
+}
+
+.ajuanDraftDetailPage .detailItem span {
+  font-size: 13px;
+}
+
+.ajuanDraftDetailPage .detailItem strong {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.ajuanDraftDetailPage .dispositionNoteBox {
+  min-height: 118px;
+  padding: 18px;
+  border-radius: 13px;
+}
+
+.ajuanDraftDetailPage .dispositionNoteBox small {
+  font-size: 12px;
+}
+
+.ajuanDraftDetailPage .dispositionNoteBox strong {
+  font-size: 16px;
+}
+
+.ajuanDraftDetailPage .dispositionNoteBox p {
+  font-size: 15px;
+}
+
+.ajuanDraftDetailPage .requestAttachment {
+  min-height: 72px;
+  grid-template-columns: 52px 1fr;
+  padding: 13px;
+  border-radius: 13px;
+}
+
+.ajuanDraftDetailPage .requestAttachment > span {
+  width: 44px;
+  height: 44px;
+}
+
+.ajuanDraftDetailPage .requestAttachment > span svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ajuanDraftDetailPage .requestAttachment strong {
+  font-size: 15px;
+}
+
+.ajuanDraftDetailPage .requestAttachment small {
+  font-size: 13px;
+}
+
+.ajuanDraftDetailPage .dispositionFlow {
+  gap: 9px;
+}
+
+.ajuanDraftDetailPage .dispositionFlow p {
+  grid-template-columns: 31px 1fr;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.ajuanDraftDetailPage .dispositionFlow b {
+  width: 27px;
+  height: 27px;
+  font-size: 13px;
+}
+
+.ajuanDraftDetailPage .dispositionSubmitBar button {
+  min-height: 48px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.ajuanDraftDetailPage .dispositionSubmitBar button svg {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+}
+
 .topbar .topbarActions {
   margin-left: auto;
   width: auto;
@@ -7331,6 +9157,313 @@ td {
   box-shadow: 0 16px 44px rgba(0, 93, 210, 0.08);
 }
 
+/* Split login, matching the requested reference. */
+.loginShell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(560px, 1.16fr) minmax(430px, 1fr);
+  place-items: stretch;
+  overflow: auto;
+  background: #ffffff;
+}
+
+.loginHero {
+  position: relative;
+  display: block;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 30px 34px;
+  background:
+    radial-gradient(circle at 10% 34%, rgba(255, 255, 255, 0.32), transparent 8%),
+    radial-gradient(circle at 88% 88%, rgba(169, 245, 255, 0.46), transparent 18%),
+    radial-gradient(circle at 55% 65%, rgba(0, 57, 226, 0.24), transparent 23%),
+    linear-gradient(145deg, #004fff 0%, #008fff 50%, #8edcff 100%);
+  isolation: isolate;
+}
+
+.loginPanel {
+  width: 100%;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 56px 24px;
+  background:
+    radial-gradient(circle, rgba(46, 144, 249, 0.22) 1px, transparent 1.5px) 0 0 / 18px 18px,
+    #ffffff;
+}
+
+.loginCard {
+  width: min(100%, 420px);
+  padding: 40px 48px 34px;
+  border: 1px solid rgba(226, 233, 246, 0.9);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 32px 80px rgba(27, 42, 93, 0.12);
+  text-align: center;
+}
+
+.loginIcon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 26px;
+  border-radius: 19px;
+  background: linear-gradient(145deg, #25adff, #0055f1 78%);
+  box-shadow: 0 16px 28px rgba(0, 95, 230, 0.14);
+  transform: rotate(32deg);
+}
+
+.loginIcon svg {
+  width: 28px;
+  height: 28px;
+  transform: rotate(-32deg);
+}
+
+.loginCard h2 {
+  margin: 0;
+  color: #282C70;
+  font-size: 30px;
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.loginCard .muted {
+  margin: 14px 0 36px;
+  color: #5A5F99;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.loginCard form {
+  gap: 18px;
+  text-align: left;
+}
+
+.loginField {
+  gap: 8px;
+  color: #282C70;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.inputWrap input {
+  min-height: 50px;
+  border: 1.5px solid #96B3E9;
+  border-radius: 10px;
+  padding: 0 50px 0 56px;
+  color: #282C70;
+  background: #ffffff;
+  font-size: 13px;
+}
+
+.inputWrap input::placeholder {
+  color: #8D90B7;
+}
+
+.loginCard .inputIcon {
+  left: 22px;
+}
+
+.loginCard .inputAction {
+  right: 20px;
+}
+
+.loginOptions {
+  margin: 4px 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rememberCheck {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 10px;
+  color: #282C70;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rememberCheck input {
+  width: 18px;
+  height: 18px;
+  accent-color: #0C61F1;
+}
+
+.linkBtn {
+  padding: 0;
+  color: #005dff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.loginCard .primaryBtn {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 0;
+  border-radius: 10px;
+  background: linear-gradient(100deg, #4aaeff 0%, #0054f4 100%);
+  box-shadow: 0 18px 34px rgba(0, 97, 241, 0.16);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.loginDivider {
+  display: block;
+  height: 2px;
+  margin: 46px 14px 0;
+  background: #e1e6ef;
+}
+
+.loginBrand {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.loginBrand img {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 18px rgba(0, 43, 140, 0.18));
+}
+
+.loginBrand strong {
+  display: block;
+  color: #ffffff;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.loginBrand span {
+  display: block;
+  margin-top: 5px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.showcaseScene {
+  position: absolute;
+  inset: 112px 38px 28px;
+  min-height: auto;
+  margin: 0;
+}
+
+.showcaseScene::before {
+  left: 5%;
+  right: 9%;
+  bottom: 4%;
+  height: 16%;
+  background: rgba(0, 47, 180, 0.14);
+}
+
+.showcaseScene .mailScene {
+  left: 22%;
+  top: 27%;
+  width: min(54vw, 430px);
+  max-width: 62%;
+}
+
+.showcaseScene .mailEnvelope {
+  background: linear-gradient(150deg, #58b9ff 0%, #0058ff 62%, #0038d9 100%);
+  box-shadow: 0 34px 72px rgba(0, 54, 180, 0.32);
+}
+
+.showcaseScene .mailPaper {
+  top: -42%;
+  left: 16%;
+  right: 13%;
+  height: 88%;
+  transform: translateZ(42px) rotate(-1deg);
+}
+
+.paperPlane {
+  right: 10%;
+  top: 2%;
+  width: 118px;
+  height: 74px;
+}
+
+.dashedFlight {
+  right: -1%;
+  top: 12%;
+  width: 210px;
+  height: 178px;
+  border-width: 3px;
+}
+
+.chatBubble {
+  left: 19%;
+  top: 10%;
+  width: 78px;
+  height: 78px;
+  border-radius: 18px 18px 18px 8px;
+  font-size: 2.35rem;
+  box-shadow: 0 18px 36px rgba(0, 70, 190, 0.24);
+}
+
+.contactCard {
+  left: 2%;
+  top: 42%;
+  width: 132px;
+  min-height: 76px;
+  border-radius: 14px;
+}
+
+.floatingDoc {
+  right: 9%;
+  bottom: 15%;
+  width: 120px;
+  min-height: 148px;
+  padding: 24px 19px;
+  border-radius: 16px;
+}
+
+.stampBase {
+  left: 6%;
+  bottom: 4%;
+  width: 104px;
+  height: 132px;
+}
+
+.sliderDots {
+  right: 12%;
+  bottom: 7%;
+}
+
+@media (max-width: 980px) {
+  .loginShell {
+    grid-template-columns: 1fr;
+  }
+
+  .loginHero {
+    display: none;
+  }
+
+  .loginPanel {
+    padding: 28px 20px;
+  }
+}
+
+@media (max-width: 1260px) {
+  .operatorAjuanStatusGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .operatorAjuanStatusGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1120px) {
   .statsGrid {
     grid-template-columns: repeat(2, minmax(170px, 1fr));
@@ -7417,7 +9550,7 @@ td {
   .agendaField {
     position: static;
     width: 100%;
-    margin-top: 12px;
+    margin: 12px 0 0;
   }
 
   .stageItem b {
@@ -7539,5 +9672,368 @@ td {
   .pagination {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+/* Final login polish: keep this last so older responsive rules do not disturb the login composition. */
+.loginShell {
+  min-height: 100dvh;
+  grid-template-columns: minmax(540px, 1.15fr) minmax(420px, 0.95fr);
+}
+
+.loginHero {
+  min-height: 100dvh;
+}
+
+.loginPanel {
+  min-height: 100dvh;
+  padding: clamp(28px, 5vw, 70px);
+}
+
+.loginCard {
+  width: min(420px, 100%);
+  padding: clamp(32px, 4vw, 44px) clamp(30px, 4vw, 46px) 34px;
+}
+
+.showcaseScene {
+  inset: 116px 44px 36px;
+}
+
+.showcaseScene .mailScene {
+  left: 21%;
+  top: 27%;
+  width: min(430px, 58%);
+}
+
+.contactCard {
+  left: 3%;
+  top: 43%;
+}
+
+.chatBubble {
+  left: 20%;
+  top: 12%;
+}
+
+.floatingDoc {
+  right: 9%;
+  bottom: 16%;
+}
+
+.stampBase {
+  left: 7%;
+  bottom: 5%;
+}
+
+.loginCard .inputIcon svg,
+.loginCard .inputAction svg {
+  width: 18px;
+  height: 18px;
+}
+
+.loginCard .inputIcon,
+.loginCard .inputAction {
+  color: #8D90B7;
+}
+
+.loginCard .fieldError {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+@media (min-width: 1440px) {
+  .loginCard {
+    transform: translateX(-18px);
+  }
+
+  .showcaseScene .mailScene {
+    left: 24%;
+  }
+}
+
+@media (max-width: 1080px) {
+  .loginShell {
+    grid-template-columns: minmax(480px, 1fr) minmax(400px, 0.92fr);
+  }
+
+  .showcaseScene {
+    inset: 108px 26px 30px;
+  }
+}
+
+@media (max-width: 900px) {
+  .loginShell {
+    grid-template-columns: 1fr;
+    background:
+      radial-gradient(circle, rgba(46, 144, 249, 0.18) 1px, transparent 1.5px) 0 0 / 18px 18px,
+      #ffffff;
+  }
+
+  .loginHero {
+    display: none;
+  }
+
+  .loginPanel {
+    min-height: 100dvh;
+    padding: 28px 20px;
+    background: transparent;
+  }
+
+  .loginCard {
+    box-shadow: 0 24px 64px rgba(27, 42, 93, 0.11);
+  }
+}
+
+@media (max-width: 520px) {
+  .loginPanel {
+    padding: 22px;
+  }
+
+  .loginCard {
+    padding: 28px 0 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .loginIcon {
+    width: 76px;
+    height: 76px;
+    margin-bottom: 24px;
+  }
+
+  .loginCard h2 {
+    font-size: 34px;
+  }
+
+  .loginCard .muted {
+    margin-bottom: 38px;
+    font-size: 16px;
+  }
+
+  .loginCard form {
+    gap: 19px;
+  }
+
+  .loginField {
+    font-size: 13px;
+  }
+
+  .inputWrap input {
+    min-height: 60px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+
+  .loginOptions {
+    margin-top: 4px;
+  }
+
+  .loginCard .primaryBtn {
+    min-height: 64px;
+    border-radius: 12px;
+    font-size: 19px;
+  }
+
+  .loginDivider {
+    margin-top: 54px;
+  }
+}
+
+/* Login symmetry pass. */
+.loginPanel {
+  align-items: center;
+  justify-items: center;
+}
+
+.loginCard {
+  height: auto;
+  min-height: 0;
+  max-width: 420px;
+  padding: 36px 44px 38px;
+  display: block;
+}
+
+.loginIcon {
+  margin-bottom: 24px;
+}
+
+.loginCard h2 {
+  font-size: 31px;
+}
+
+.loginCard .muted {
+  margin: 12px 0 32px;
+}
+
+.loginCard form {
+  gap: 16px;
+}
+
+.loginField {
+  gap: 8px;
+}
+
+.inputWrap input {
+  min-height: 48px;
+  border-radius: 9px;
+}
+
+.loginOptions {
+  margin: 2px 0 14px;
+}
+
+.loginCard .primaryBtn {
+  min-height: 52px;
+}
+
+.loginDivider {
+  width: calc(100% - 24px);
+  margin: 38px auto 0;
+}
+
+@media (min-width: 1200px) {
+  .loginPanel {
+    padding-left: clamp(34px, 5vw, 76px);
+    padding-right: clamp(34px, 5vw, 76px);
+  }
+
+  .loginCard {
+    transform: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .loginCard {
+    padding: 28px 0 0;
+  }
+
+  .inputWrap input {
+    min-height: 60px;
+    border-radius: 12px;
+  }
+
+  .loginCard .primaryBtn {
+    min-height: 64px;
+  }
+}
+
+/* Larger login scale. */
+.loginCard {
+  max-width: 500px;
+  width: min(500px, 100%);
+  padding: 46px 56px 48px;
+}
+
+.loginIcon {
+  width: 88px;
+  height: 88px;
+  border-radius: 23px;
+  margin-bottom: 30px;
+}
+
+.loginIcon svg {
+  width: 34px;
+  height: 34px;
+}
+
+.loginCard h2 {
+  font-size: 38px;
+}
+
+.loginCard .muted {
+  margin: 14px 0 40px;
+  font-size: 17px;
+}
+
+.loginCard form {
+  gap: 21px;
+}
+
+.loginField {
+  font-size: 14px;
+}
+
+.inputWrap input {
+  min-height: 60px;
+  border-radius: 12px;
+  padding-left: 66px;
+  padding-right: 58px;
+  font-size: 16px;
+}
+
+.loginCard .inputIcon {
+  left: 26px;
+}
+
+.loginCard .inputAction {
+  right: 24px;
+}
+
+.loginCard .inputAction {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.loginCard .inputAction:hover,
+.loginCard .inputAction:focus-visible {
+  color: #0C61F1;
+  background: rgba(12, 97, 241, 0.08);
+}
+
+.loginCard .inputIcon svg,
+.loginCard .inputAction svg {
+  width: 21px;
+  height: 21px;
+}
+
+.rememberCheck,
+.linkBtn {
+  font-size: 15px;
+}
+
+.rememberCheck input {
+  width: 22px;
+  height: 22px;
+}
+
+.loginOptions {
+  margin: 4px 0 18px;
+}
+
+.loginSuccessText {
+  display: block;
+  color: #0a7b58;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.loginBackLink {
+  align-self: center;
+  margin-top: 2px;
+}
+
+.loginCard .primaryBtn {
+  min-height: 64px;
+  border-radius: 13px;
+  font-size: 20px;
+}
+
+.loginDivider {
+  margin-top: 46px;
+}
+
+@media (max-width: 520px) {
+  .loginCard {
+    width: 100%;
+    padding: 28px 0 0;
   }
 }
