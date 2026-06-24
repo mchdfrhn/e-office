@@ -1672,4 +1672,5 @@ Dokumen PRD ini menjadi acuan utama bagi AI Agent dalam membangun aplikasi E-Off
 
 Semua implementasi harus mengikuti kebutuhan role, alur proses, validasi, dan acceptance criteria yang telah dijelaskan dalam dokumen ini.
 
-1. Code berubah
+1. Code berubah ke-1
+2. Code berubah ke-2
