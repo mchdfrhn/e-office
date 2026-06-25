@@ -5839,6 +5839,18 @@ td {
   border-radius: 10px;
 }
 
+.revisionSubmitBar {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.revisionSubmitBar button {
+  min-width: 142px;
+  justify-content: center;
+  font-weight: 900;
+}
+
 .dispositionPreview {
   display: grid;
   gap: 16px;
@@ -6526,6 +6538,126 @@ td {
   color: #0036E2;
 }
 
+.dispositionFolderPanel {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid #96B3E9;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.dispositionFolderPanelTop {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.dispositionFolderHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.dispositionFolderHeader h4 {
+  margin: 0;
+  color: #282C70;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.dispositionFolderHeader button {
+  border: 0;
+  color: #0C61F1;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dispositionFolderGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dispositionFolderItem {
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #96B3E9;
+  border-radius: 12px;
+  padding: 10px;
+  color: #282C70;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dispositionFolderItem.active {
+  border-color: #0C61F1;
+  background: #f2f7ff;
+  box-shadow: 0 8px 18px rgba(12, 97, 241, 0.12);
+}
+
+.dispositionFolderItem > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: #0C61F1;
+  background: #eef5ff;
+}
+
+.dispositionFolderItem svg {
+  width: 20px;
+  height: 20px;
+}
+
+.dispositionFolderItem strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #282C70;
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dispositionFolderItem small {
+  min-width: 28px;
+  min-height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #435579;
+  background: #eef2fb;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+@media (max-width: 900px) {
+  .dispositionFolderGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .dispositionFolderHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dispositionFolderGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .archiveTable {
   min-width: 980px;
   table-layout: auto;
@@ -6870,38 +7002,40 @@ td {
 
 .operatorOutgoingTable th:nth-child(1),
 .operatorOutgoingTable td:nth-child(1) {
-  width: 17%;
+  width: 64px;
+  min-width: 64px;
 }
 
 .operatorOutgoingTable th:nth-child(2),
 .operatorOutgoingTable td:nth-child(2) {
-  width: 15%;
+  min-width: 170px;
 }
 
 .operatorOutgoingTable th:nth-child(3),
 .operatorOutgoingTable td:nth-child(3) {
-  width: 16%;
+  min-width: 190px;
 }
 
 .operatorOutgoingTable th:nth-child(4),
 .operatorOutgoingTable td:nth-child(4) {
-  width: 22%;
+  min-width: 300px;
 }
 
 .operatorOutgoingTable th:nth-child(5),
 .operatorOutgoingTable td:nth-child(5) {
-  width: 13%;
+  min-width: 150px;
   white-space: nowrap;
 }
 
 .operatorOutgoingTable th:nth-child(6),
 .operatorOutgoingTable td:nth-child(6) {
-  width: 12%;
+  min-width: 120px;
 }
 
 .operatorOutgoingTable th:nth-child(7),
 .operatorOutgoingTable td:nth-child(7) {
-  width: 82px;
+  width: 92px;
+  min-width: 92px;
   text-align: center;
 }
 
@@ -6953,6 +7087,25 @@ td {
   justify-content: flex-end;
   align-items: center;
   gap: 9px;
+}
+
+.operatorOutgoingPage > .operatorOutgoingPagination {
+  display: none;
+}
+
+.operatorOutgoingListFooter {
+  margin-top: 18px;
+}
+
+.outgoingNumberLink {
+  border: 0;
+  padding: 0;
+  color: #0057ff;
+  background: transparent;
+  font: inherit;
+  font-weight: 900;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .operatorOutgoingPagination span {
@@ -8230,6 +8383,34 @@ td {
   margin-top: 12px;
 }
 
+.operatorFinalForm .uploadDropzone {
+  min-height: 116px;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto auto auto;
+  align-content: start;
+  justify-items: center;
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+
+.operatorFinalForm .uploadDropzoneLabel {
+  justify-self: start;
+  margin-bottom: 4px;
+}
+
+.operatorFinalForm .uploadDropzone b {
+  max-width: 100%;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.operatorFinalForm .uploadDropzone small {
+  position: static;
+  justify-self: center;
+  text-align: center;
+  line-height: 1.35;
+}
+
 .operatorFinalForm .primaryBtn {
   width: 100%;
   min-height: 44px;
@@ -8988,6 +9169,38 @@ td {
   width: 15px;
   height: 15px;
   flex: 0 0 15px;
+}
+
+@media (min-width: 1181px) {
+  .ajuanDraftDetailPage .detailGrid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ajuanDraftDetailPage .detailItem,
+  .ajuanDraftDetailPage .detailItem.wide {
+    grid-column: auto;
+    min-height: 64px;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 3px 8px;
+    padding: 10px;
+  }
+
+  .ajuanDraftDetailPage .detailItem svg {
+    width: 14px;
+    height: 14px;
+    padding: 6px;
+  }
+
+  .ajuanDraftDetailPage .detailItem span {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .ajuanDraftDetailPage .detailItem strong {
+    font-size: 11px;
+    line-height: 1.2;
+  }
 }
 
 /* User draft detail polish. */
