@@ -196,6 +196,8 @@ function stripOutgoingAttachmentPayloads(letters) {
     ...letter,
     dokumenApprovalPimpinan: stripAttachmentPayload(letter.dokumenApprovalPimpinan),
     lampiranApproval: (letter.lampiranApproval || []).map(stripAttachmentPayload),
+    dokumenPendukungRevisi: stripAttachmentPayload(letter.dokumenPendukungRevisi),
+    lampiranRevisiDraft: (letter.lampiranRevisiDraft || []).map(stripAttachmentPayload),
     suratFinalOperator: stripAttachmentPayload(letter.suratFinalOperator),
     lampiranFinal: (letter.lampiranFinal || []).map(stripAttachmentPayload),
     lampiran: (letter.lampiran || []).map(stripAttachmentPayload)
@@ -207,6 +209,8 @@ async function hydrateOutgoingAttachmentPayloads(letters) {
     ...letter,
     dokumenApprovalPimpinan: await hydrateAttachmentPayload(letter.dokumenApprovalPimpinan),
     lampiranApproval: await Promise.all((letter.lampiranApproval || []).map(hydrateAttachmentPayload)),
+    dokumenPendukungRevisi: await hydrateAttachmentPayload(letter.dokumenPendukungRevisi),
+    lampiranRevisiDraft: await Promise.all((letter.lampiranRevisiDraft || []).map(hydrateAttachmentPayload)),
     suratFinalOperator: await hydrateAttachmentPayload(letter.suratFinalOperator),
     lampiranFinal: await Promise.all((letter.lampiranFinal || []).map(hydrateAttachmentPayload)),
     lampiran: await Promise.all((letter.lampiran || []).map(hydrateAttachmentPayload))
@@ -926,12 +930,12 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
         getAjuanIdentityKey(item) !== requestKey
       ))
     ]);
-    if (request.status === "Draft") {
-      setConfirm({ title: "Draft tersimpan", body: `${request.nomor || "Ajuan baru"} sudah tersimpan sebagai draft dan tetap ada setelah refresh.` });
-      return;
-    }
     if (request.revisiDariStatus) {
       setConfirm({ title: "Revisi terkirim", body: `${request.nomor} sudah dikirim kembali ke portal pimpinan untuk approval ulang.` });
+      return;
+    }
+    if (request.dikirimDariDraft) {
+      setConfirm({ title: "Draft dikirim", body: `${request.nomor} sudah diperbarui dari draft menjadi Menunggu Approval.` });
       return;
     }
     setConfirm({ title: "Ajuan terkirim", body: `${request.nomor} sudah masuk ke portal pimpinan untuk proses approval. Operator dapat memantau aktivitas ajuan.` });
@@ -956,10 +960,8 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
       return [letter, ...nextLetters];
     });
     setConfirm({
-      title: letter.status === "Draft" ? "Draft surat keluar tersimpan" : "Surat keluar terkirim ke proses",
-      body: letter.status === "Draft"
-        ? `${letter.nomor} sudah tersimpan sebagai draft surat keluar.`
-        : `${letter.nomor} sudah masuk daftar surat keluar dengan status Menunggu Approval untuk keputusan pimpinan.`
+      title: "Surat keluar terkirim ke proses",
+      body: `${letter.nomor} sudah masuk daftar surat keluar dengan status Menunggu Approval untuk keputusan pimpinan.`
     });
   }
 
@@ -2027,8 +2029,8 @@ function OperatorFinalNumberPanel({ nomor, detail, setConfirm, onSubmitFinal, on
   }
 
   return (
-    <article className="requestActionCard verificationActive">
-      <h2><LineIcon name="doc" /> Penomoran Surat</h2>
+    <article className="requestActionCard verificationActive numberingCard">
+      <h2 className="numberingTitle"><span><LineIcon name="doc" /></span> Penomoran Surat</h2>
       <p>Surat sudah disetujui pimpinan. Operator menginput nomor surat dan mengunggah dokumen final agar tersinkron ke portal user.</p>
       <form className="verificationFields operatorFinalForm" onSubmit={submitFinalNumbering}>
         <label>
@@ -2042,7 +2044,7 @@ function OperatorFinalNumberPanel({ nomor, detail, setConfirm, onSubmitFinal, on
           {errors.nomorSurat && <small className="fieldError">{errors.nomorSurat}</small>}
         </label>
         <UploadDropzone label={<>Upload Dokumen <span className="uploadRequiredMark">*</span></>} name="finalDocument" accept=".pdf,application/pdf" formats="PDF. Maksimal 10 MB." />
-        <div className="revisionNotice">
+        <div className="numberingNotice">
           <LineIcon name="info" />
           <span>Dokumen final yang diunggah operator akan menjadi file utama di portal user dan arsip.</span>
           {errors.file && <small className="fieldError">{errors.file}</small>}
@@ -2500,6 +2502,8 @@ function AttachmentPreviewModal({ attachment, detail, onClose }) {
   const type = getAttachmentMime(name, mime);
   const isPdf = type.includes("pdf");
   const isImage = type.startsWith("image/");
+  const showUploadedPdf = dataUrl && isPdf;
+  const showLetterPreview = !dataUrl && isPdf && hasLetterPreviewDetail(detail);
 
   return (
     <div className="modalBackdrop" role="presentation" onClick={onClose}>
@@ -2512,9 +2516,10 @@ function AttachmentPreviewModal({ attachment, detail, onClose }) {
           <button type="button" className="iconBtn" onClick={onClose} aria-label="Tutup pratinjau"><LineIcon name="x" /></button>
         </div>
         <div className="attachmentPreviewBody">
-          {dataUrl && isPdf && <iframe title={`Pratinjau ${name}`} src={dataUrl} />}
+          {showUploadedPdf && <iframe title={`Pratinjau ${name}`} src={dataUrl} />}
+          {showLetterPreview && <LetterPreviewSheet detail={detail} attachment={attachment} />}
           {dataUrl && isImage && <img src={dataUrl} alt={`Pratinjau ${name}`} />}
-          {(!dataUrl || (!isPdf && !isImage)) && (
+          {!showUploadedPdf && !showLetterPreview && (!dataUrl || (!isPdf && !isImage)) && (
             <div className="attachmentPreviewSheet">
               <small>{getAttachmentExt(name).toUpperCase() || "PDF"}</small>
               <h4>{detail.judul || name}</h4>
@@ -2530,6 +2535,80 @@ function AttachmentPreviewModal({ attachment, detail, onClose }) {
         </div>
       </section>
     </div>
+  );
+}
+
+function hasLetterPreviewDetail(detail) {
+  if (!detail) return false;
+  return Boolean(
+    detail.nomor ||
+    detail.jenis ||
+    detail.judul ||
+    detail.perihal ||
+    detail.pemohon ||
+    detail.penerima ||
+    detail.tujuan ||
+    detail.keterangan ||
+    detail.ringkasan
+  );
+}
+
+function getLetterPreviewValue(value, fallback = "-") {
+  return value ? String(value) : fallback;
+}
+
+function LetterPreviewSheet({ detail, attachment }) {
+  const [name, , meta] = attachment;
+  const subject = detail.judul || detail.perihal || detail.ringkasan || "Ajuan surat";
+  const recipient = detail.tujuan || detail.penerima || detail.pengirim || "Pihak terkait";
+  const applicant = detail.pemohon || detail.dibuatOleh || detail.operator || "Operator";
+  const body = detail.keterangan || detail.ringkasan || `Mohon persetujuan atas ${subject.toLowerCase()} sesuai dokumen yang diajukan.`;
+  const letterRows = [
+    ["Nomor Ajuan", detail.nomor || detail.nomorSurat || detail.agenda],
+    ["Jenis Surat", detail.jenis || "Surat"],
+    ["Tanggal", detail.tanggal],
+    ["Pemohon/Operator", applicant],
+    ["Unit", detail.unit],
+    ["Tujuan", recipient]
+  ].filter(([, value]) => value);
+
+  return (
+    <article className="letterPreviewSheet">
+      <header className="letterPreviewKop">
+        <strong>E-Office Persuratan</strong>
+        <span>STT Pekerjaan Umum Jakarta</span>
+        <small>Ringkasan dokumen upload operator ketika PDF asli belum tersedia untuk pratinjau</small>
+      </header>
+      <section className="letterPreviewMeta">
+        {letterRows.map(([label, value]) => (
+          <div key={label}>
+            <span>{label}</span>
+            <b>{getLetterPreviewValue(value)}</b>
+          </div>
+        ))}
+      </section>
+      <section className="letterPreviewContent">
+        <p>Kepada Yth.</p>
+        <h4>{recipient}</h4>
+        <p className="letterPreviewSubject">Perihal: {subject}</p>
+        <p>Dengan hormat,</p>
+        <p>{body}</p>
+        <p>Dokumen ini diajukan melalui sistem E-Office untuk diperiksa dan diputuskan oleh pimpinan. Lampiran asli tetap tersedia melalui tombol unduh.</p>
+      </section>
+      <footer className="letterPreviewFooter">
+        <div>
+          <span>Dokumen</span>
+          <b>{name}</b>
+          <small>{meta}</small>
+        </div>
+        <div className="letterPreviewSign">
+          <span>Jakarta, {detail.tanggal || new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span>
+          <b>Pimpinan</b>
+          <i />
+          <strong>Dewi Pimpinan</strong>
+        </div>
+      </footer>
+    </article>
   );
 }
 
@@ -2687,10 +2766,8 @@ function IncomingLetterForm({ role, setConfirm }) {
       form.reset();
       form.dispatchEvent(new Event("reset", { bubbles: true }));
       setConfirm({
-        title: isForward ? "Surat diteruskan" : "Draft tersimpan",
-        body: isForward
-          ? `${agendaNumber} tersimpan, status menjadi diteruskan, dan notifikasi pimpinan dibuat.`
-          : `${agendaNumber} tersimpan sebagai draft registrasi surat masuk.`
+        title: "Surat diteruskan",
+        body: `${agendaNumber} tersimpan, status menjadi diteruskan, dan notifikasi pimpinan dibuat.`
       });
     } catch (error) {
       setConfirm({ title: "Gagal menyimpan surat masuk", body: error.message || "Silakan coba lagi." });
@@ -3040,9 +3117,6 @@ function IncomingLetterForm({ role, setConfirm }) {
         </section>
 
         <div className="incomingActions">
-          <button type="button" className="softBtn" onClick={(event) => saveIncomingLetter(event, "draft")} disabled={Boolean(savingIncoming)}>
-            {savingIncoming === "draft" ? "Menyimpan..." : "Simpan Draft"}
-          </button>
           <button type="button" className="primaryBtn" onClick={(event) => saveIncomingLetter(event, "forward")} disabled={Boolean(savingIncoming)}>
             {savingIncoming === "forward" ? "Meneruskan..." : "Teruskan ke Pimpinan"}
           </button>
@@ -3956,7 +4030,14 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
           <tbody>
             {filteredHistory.map((row) => {
               const detail = row[6] || historyRowToAjuan(row, currentUserName, currentUserProfile);
-              const openDetail = () => setSelectedAjuan(detail);
+              const isDraftRow = getAjuanWorkflowStatus(detail) === "Draft";
+              const openDetail = () => {
+                if (isDraftRow) {
+                  openCreateAjuan(detail);
+                  return;
+                }
+                setSelectedAjuan(detail);
+              };
               const nomorSurat = getAjuanNomorSurat(detail);
               return (
                 <tr key={row[0]} className="clickableHistoryRow" onClick={openDetail}>
@@ -4102,7 +4183,8 @@ function AjuanSuratDetail({ ajuan, onBack, onContinue, onCreateRetry, setConfirm
   const isDraft = ajuan.status === "Draft";
   const [previewAttachment, setPreviewAttachment] = useState(null);
   const detailStatus = getAjuanDisplayStatus(ajuan);
-  const detailStageIndex = getAjuanStageIndex(detailStatus);
+  const ajuanDetailStages = ["Draft", "Dikirim", "Approval", "Penomoran Surat", "Selesai"];
+  const detailStageIndex = Math.min(getAjuanStageIndex(detailStatus), ajuanDetailStages.length - 1);
   const detailNeedsRevision = isAjuanRevisionStatus(ajuan.status);
   const rejectionNote = ajuan.catatanPimpinan || ajuan.catatanOperator || ajuan.catatanPenolakan || ajuan.rejectionNote || "";
   const finalAttachments = getAjuanFinalAttachments(ajuan);
@@ -4228,13 +4310,13 @@ function AjuanSuratDetail({ ajuan, onBack, onContinue, onCreateRetry, setConfirm
         <aside className="dispositionPreview">
           <h3>Status Ajuan</h3>
           <div className="dispositionFlow">
-            {["Draft", "Dikirim", "Approval", "Selesai"].map((item, index) => (
+            {ajuanDetailStages.map((item, index) => (
               <p key={item} className={`${index < detailStageIndex ? "completed" : ""}${index === detailStageIndex ? " active" : ""}${detailNeedsRevision && index === detailStageIndex ? " rejected" : ""}`}><b>{index + 1}</b>{item}</p>
             ))}
           </div>
           <div className="dispositionSubmitBar">
             {isDraft ? (
-              <button type="button" className="primaryBtn" onClick={onContinue}><LineIcon name="edit" /> Lanjutkan Buat Surat</button>
+              <button type="button" className="primaryBtn" onClick={onContinue}><LineIcon name="send" /> Kirim Ajuan</button>
             ) : detailNeedsRevision ? (
               <button type="button" className="primaryBtn" onClick={() => onCreateRetry(ajuan)}><LineIcon name="refresh" /> Revisi Ajuan</button>
             ) : (
@@ -4260,6 +4342,10 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
   const letterTypeOptions = draft?.jenis && !ajuanLetterTypeOptions.includes(draft.jenis)
     ? [draft.jenis, ...ajuanLetterTypeOptions]
     : ajuanLetterTypeOptions;
+  const savedDraftAttachment = !isRevisionMode && (draft?.lampiran || []).find((attachment) => {
+    const [name, size] = attachment || [];
+    return name && !String(name).toLowerCase().includes("belum diunggah") && size && size !== "-";
+  });
 
   async function submitAjuan(event) {
     event.preventDefault();
@@ -4291,7 +4377,7 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
       setConfirm({ title: "Upload dokumen wajib", body: "Unggah dokumen surat terlebih dahulu sebelum ajuan dikirim ke operator. Tanpa dokumen, tahapan tetap berada di Draft Ajuan." });
       return;
     }
-    if (isRevisionMode && intent === "send" && !file?.name) {
+    if (isRevisionMode && intent === "send" && !file?.name && !hasUploadedAjuanDocument(draft)) {
       setConfirm({ title: "Upload dokumen wajib", body: "Untuk revisi ajuan, unggah dokumen pendukung terbaru sebelum mengirim kembali." });
       return;
     }
@@ -4303,7 +4389,7 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
       ? [[file.name, formatFileSize(file.size), `Diunggah ${today}`, uploadedDataUrl, file.type, attachmentKey]]
       : draft?.lampiran?.length
         ? draft.lampiran
-        : [["Dokumen pendukung belum diunggah", "-", intent === "draft" ? `Draft disimpan ${today}` : `Ajuan dikirim ${today}`]];
+        : [["Dokumen pendukung belum diunggah", "-", `Ajuan dikirim ${today}`]];
 
     onCreateAjuan({
       nomor,
@@ -4311,11 +4397,12 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
       pemohon: currentUserName || "Budi Santoso",
       unit: currentUserProfile?.unit || "Kepegawaian",
       tanggal: today,
-      status: intent === "draft" ? "Draft" : "Menunggu Approval",
+      status: "Menunggu Approval",
+      dikirimDariDraft: intent === "send" && draft?.status === "Draft",
       tujuan,
       judul,
       keterangan,
-      dokumenDiunggahUser: Boolean(file?.name) || Boolean(draft?.dokumenDiunggahUser),
+      dokumenDiunggahUser: Boolean(file?.name) || Boolean(draft?.dokumenDiunggahUser) || hasUploadedAjuanDocument(draft),
       nomorSuratFinal: draft?.nomorSuratFinal || "",
       revisiDariStatus: draft?.sourceStatus || "",
       revisiPada: isRevisionMode ? new Date().toLocaleString("id-ID", {
@@ -4428,12 +4515,14 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
                 <textarea name="keterangan" rows={6} placeholder={isRevisionMode ? "Tuliskan keterangan revisi atau penjelasan perbaikan dokumen." : "Tuliskan kebutuhan, latar belakang, atau keterangan singkat ajuan surat."} defaultValue={isRevisionMode ? "" : draft?.keterangan || ""} />
               </label>
               <UploadDropzone label={<>Upload Dokumen Pendukung <span className="uploadRequiredMark">*</span></>} name="lampiran" accept=".pdf,application/pdf" formats="PDF. Maksimal 10 MB." />
+              {savedDraftAttachment && (
+                <small className="savedDraftFile">Dokumen tersimpan: {savedDraftAttachment[0]} - {savedDraftAttachment[1]}</small>
+              )}
             </div>
           </article>
 
           <div className="dispositionSubmitBar">
             <button type="button" className="ghostBtn" onClick={onCancel}>Batal</button>
-            <button type="submit" name="intent" value="draft" className="softBtn" formNoValidate><LineIcon name="doc" /> Simpan Draft</button>
             <button type="submit" name="intent" value="send" className="primaryBtn"><LineIcon name="send" /> Kirim Ajuan</button>
           </div>
         </form>
@@ -4444,12 +4533,17 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
             <b><LineIcon name="check" /></b>
           </div>
           <h3>Ringkasan Proses</h3>
-          {[
-            ["Draft", "Data ajuan dapat disimpan sebelum dikirim.", "doc"],
+          {(isRevisionMode ? [
+            ["Revisi", "Isi keterangan perbaikan dan unggah dokumen terbaru.", "refresh"],
             ["Approval", "Pimpinan menyetujui atau menolak ajuan.", "shield"],
             ["Penomoran", "Operator menginput nomor surat.", "edit"],
             ["Selesai", "Surat final masuk ke arsip digital.", "check"]
-          ].map(([title, body, icon]) => (
+          ] : [
+            ["Pengiriman", "Ajuan langsung dikirim setelah data dan dokumen lengkap.", "send"],
+            ["Approval", "Pimpinan menyetujui atau menolak ajuan.", "shield"],
+            ["Penomoran", "Operator menginput nomor surat.", "edit"],
+            ["Selesai", "Surat final masuk ke arsip digital.", "check"]
+          ]).map(([title, body, icon]) => (
             <p key={title}><i><LineIcon name={icon} /></i><span><strong>{title}</strong><small>{body}</small></span></p>
           ))}
         </aside>
@@ -5098,8 +5192,12 @@ function ModuleView({
           detail={detail}
           onBack={() => setOutgoingAction(null)}
           onRevise={() => setOutgoingAction({ mode: "process", row: outgoingAction.row })}
+          onNumbering={() => setOutgoingAction({ mode: "numbering", row: outgoingAction.row })}
         />
       );
+    }
+    if (outgoingAction.mode === "numbering") {
+      return <OutgoingLetterProcess detail={detail} onBack={() => setOutgoingAction(null)} setConfirm={setConfirm} onUpdateOutgoing={onUpdateOutgoing} />;
     }
     return <OutgoingLetterProcess detail={detail} onBack={() => setOutgoingAction(null)} setConfirm={setConfirm} onUpdateOutgoing={onUpdateOutgoing} />;
   }
@@ -5131,7 +5229,7 @@ function ModuleView({
         onCreate={() => setOpenForms((current) => ({ ...current, [view]: true }))}
         onManualCreate={() => setOpenForms((current) => ({ ...current, [view]: true }))}
         onDetail={(row) => setOutgoingAction({ mode: "detail", row })}
-        onProcess={(row) => setOutgoingAction({ mode: "process", row })}
+        onProcess={(row) => setOutgoingAction({ mode: row[4] === "Disetujui" ? "numbering" : "process", row })}
       />
     );
   }
@@ -5274,6 +5372,9 @@ function OperatorOutgoingList({ query, setQuery, outgoingLetters, onCreate, onMa
                     <td>
                       <div className="operatorOutgoingActions">
                         <button type="button" aria-label={`Lihat ${letter.nomor}`} onClick={() => onDetail(row)}><LineIcon name="eye" /></button>
+                        {letter.status === "Disetujui" && (
+                          <button type="button" aria-label={`Penomoran ${letter.nomor}`} onClick={() => onProcess(row)}><LineIcon name="edit" /></button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -5891,7 +5992,7 @@ function FormPanel({ view, errors, onSubmit, onCancel }) {
         </div>
         <div className="actions">
           {onCancel && <button type="button" className="ghostBtn" onClick={onCancel}>Batal</button>}
-          <button className="primaryBtn">{isDisposition ? "Kirim Disposisi" : "Simpan Draft"}</button>
+          <button className="primaryBtn">{isDisposition ? "Kirim Disposisi" : "Simpan"}</button>
         </div>
       </form>
     </aside>
@@ -5927,7 +6028,7 @@ function OutgoingLetterForm({ onCancel, setConfirm, onCreateOutgoing }) {
     if (!payload.penerima) nextErrors.recipient = "Instansi atau penerima wajib diisi.";
     if (!payload.perihal) nextErrors.subject = "Perihal wajib diisi.";
     if (fileError) nextErrors.document = fileError;
-    if (intent === "send" && !file?.name) nextErrors.document = "Dokumen surat wajib diunggah sebelum dikirim.";
+    if (!file?.name) nextErrors.document = "Dokumen surat wajib diunggah sebelum dikirim.";
 
     setFormErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -5950,11 +6051,11 @@ function OutgoingLetterForm({ onCancel, setConfirm, onCreateOutgoing }) {
       onCreateOutgoing({
         ...payload,
         tanggal: formatJakartaInputDate(payload.tanggalInput),
-        status: intent === "draft" ? "Draft" : "Menunggu Approval",
+        status: "Menunggu Approval",
         penandatangan: "Dewi Pimpinan",
         pembuat: "Rina Operator",
         lampiran: attachment ? [attachment] : [],
-        riwayat: [[`${formatJakartaInputDate(payload.tanggalInput)}, ${new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(new Date())} WIB`, intent === "draft" ? "Operator menyimpan draft surat keluar" : "Operator mengirim surat keluar ke pimpinan untuk approval"]]
+        riwayat: [[`${formatJakartaInputDate(payload.tanggalInput)}, ${new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(new Date())} WIB`, "Operator mengirim surat keluar ke pimpinan untuk approval"]]
       });
       form.reset();
       form.dispatchEvent(new Event("reset", { bubbles: true }));
@@ -5964,15 +6065,13 @@ function OutgoingLetterForm({ onCancel, setConfirm, onCreateOutgoing }) {
     }
   }
 
-  function requestSave(event, intent) {
+  function requestSave(event) {
     const form = event.currentTarget.form;
     if (!form) return;
     setConfirm({
-      title: intent === "draft" ? "Simpan draft surat keluar?" : "Kirim surat keluar?",
-      body: intent === "draft"
-        ? "Surat keluar akan disimpan sebagai draft lokal dan tampil di daftar operator."
-        : "Surat keluar akan disimpan dan masuk status Menunggu Approval untuk keputusan pimpinan.",
-      onConfirm: () => saveOutgoingLetter(form, intent)
+      title: "Kirim surat keluar?",
+      body: "Surat keluar akan disimpan dan masuk status Menunggu Approval untuk keputusan pimpinan.",
+      onConfirm: () => saveOutgoingLetter(form, "send")
     });
   }
 
@@ -6042,8 +6141,7 @@ function OutgoingLetterForm({ onCancel, setConfirm, onCreateOutgoing }) {
             </section>
             <div className="outgoingActions wideField">
               <button type="button" className="outlineBtn" onClick={onCancel}>Batal</button>
-              <button type="button" className="draftBtn" disabled={Boolean(savingIntent)} onClick={(event) => requestSave(event, "draft")}><LineIcon name="doc" /> {savingIntent === "draft" ? "Menyimpan" : "Simpan Draft"}</button>
-              <button type="button" className="primaryBtn sendBtn" disabled={Boolean(savingIntent)} onClick={(event) => requestSave(event, "send")}><LineIcon name="send" /> {savingIntent === "send" ? "Mengirim" : "Kirim Surat"}</button>
+              <button type="button" className="primaryBtn sendBtn" disabled={Boolean(savingIntent)} onClick={requestSave}><LineIcon name="send" /> {savingIntent === "send" ? "Mengirim" : "Kirim Surat"}</button>
             </div>
           </form>
         </article>
@@ -6055,7 +6153,6 @@ function OutgoingLetterForm({ onCancel, setConfirm, onCreateOutgoing }) {
             <li>Pastikan nomor surat belum digunakan.</li>
             <li>Unggah surat atau dokumen dalam format PDF.</li>
             <li>Pilih pejabat penandatangan yang sesuai.</li>
-            <li>Simpan draft terlebih dahulu sebelum diajukan.</li>
             <li>Ajukan approval untuk proses pemeriksaan.</li>
           </ul>
         </aside>
@@ -6064,12 +6161,13 @@ function OutgoingLetterForm({ onCancel, setConfirm, onCreateOutgoing }) {
   );
 }
 
-function OutgoingLetterDetail({ detail, onBack, onRevise, backLabel = "Kembali ke Surat Keluar" }) {
+function OutgoingLetterDetail({ detail, onBack, onRevise, onNumbering, backLabel = "Kembali ke Surat Keluar" }) {
   const [previewDocument, setPreviewDocument] = useState(null);
   const detailStatus = detail.status || "Draft";
-  const outgoingStageMap = { Draft: 0, Ditolak: 1, "Menunggu Approval": 2, Disetujui: 2, Dikirim: 3, Selesai: 3 };
+  const outgoingStageMap = { Draft: 0, Ditolak: 1, "Menunggu Approval": 2, Disetujui: 3, Dikirim: 4, Selesai: 4 };
   const detailStageIndex = outgoingStageMap[detailStatus] ?? getAjuanStageIndex(detailStatus);
   const isRejected = isAjuanRevisionStatus(detailStatus);
+  const needsNumbering = detail.status === "Disetujui";
   const rejectionNote = detail.catatanPimpinan || detail.catatanOperator || "";
   const finalAttachments = getAjuanFinalAttachments(detail);
   const attachments = detail.lampiran?.length ? detail.lampiran : [["Dokumen_Surat_Keluar.pdf", "512 KB", "Diunggah operator"]];
@@ -6180,13 +6278,18 @@ function OutgoingLetterDetail({ detail, onBack, onRevise, backLabel = "Kembali k
         <aside className="dispositionPreview">
           <div className="dispositionFlow">
             <h3>Status Surat</h3>
-            {["Draft", "Dikirim", "Approval", "Selesai"].map((item, index) => (
+            {["Draft", "Dikirim", "Approval", "Penomoran Surat", "Selesai"].map((item, index) => (
               <p key={item} className={index <= detailStageIndex ? "active" : ""}><b>{index + 1}</b>{item}</p>
             ))}
           </div>
           {isRejected && (
             <div className="dispositionSubmitBar">
               <button type="button" className="primaryBtn" onClick={onRevise}><LineIcon name="refresh" /> Revisi Surat</button>
+            </div>
+          )}
+          {needsNumbering && (
+            <div className="dispositionSubmitBar">
+              <button type="button" className="primaryBtn" onClick={onNumbering}><LineIcon name="edit" /> Penomoran Surat</button>
             </div>
           )}
         </aside>
@@ -6377,8 +6480,9 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
   const isRejected = detail.status === "Ditolak";
   const isApproved = detail.status === "Disetujui";
   const [finalNumber, setFinalNumber] = useState(detail.nomorFinal || "");
-  const [processNote, setProcessNote] = useState("");
+  const [processNote, setProcessNote] = useState(detail.catatanOperator || "");
   const [processError, setProcessError] = useState("");
+  const savedRevisionAttachment = detail.dokumenPendukungRevisi || detail.lampiranRevisiDraft?.[0] || null;
   const processTime = () => new Date().toLocaleString("id-ID", {
     day: "numeric",
     month: "long",
@@ -6388,20 +6492,28 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
     timeZone: "Asia/Jakarta"
   });
 
+  async function buildRevisionAttachment(file) {
+    const storageKey = makeAttachmentKey("outgoing-revision", detail.nomor, file);
+    const dataUrl = await readFileAsDataUrl(file);
+    await saveAttachmentPayload(storageKey, dataUrl);
+    return [file.name, formatFileSize(file.size), `Dokumen pendukung revisi ${processTime()}`, dataUrl, file.type, storageKey];
+  }
+
   async function reviseRejectedLetter(form) {
     const formData = new FormData(form);
     const file = formData.get("revisionDocument");
-    const fileError = file?.name ? validateUploadFile(file) : "Upload dokumen revisi wajib diisi untuk surat yang ditolak.";
+    const fileError = file?.name ? validateUploadFile(file) : "";
     if (fileError) {
       setProcessError(fileError);
       return;
     }
+    if (!file?.name && !savedRevisionAttachment) {
+      setProcessError("Upload dokumen pendukung wajib diisi untuk surat keluar yang ditolak.");
+      return;
+    }
 
     setProcessError("");
-    const storageKey = makeAttachmentKey("outgoing-revision", detail.nomor, file);
-    const dataUrl = await readFileAsDataUrl(file);
-    await saveAttachmentPayload(storageKey, dataUrl);
-    const attachment = [file.name, formatFileSize(file.size), `Revisi operator ${processTime()}`, dataUrl, file.type, storageKey];
+    const attachment = file?.name ? await buildRevisionAttachment(file) : savedRevisionAttachment;
     setConfirm({
       title: "Kirim ulang ke approval?",
       body: `${detail.nomor} akan diperbarui dengan dokumen revisi dan dikirim kembali ke pimpinan.`,
@@ -6409,8 +6521,10 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
         onUpdateOutgoing?.(detail.nomor, {
           status: "Menunggu Approval",
           catatanOperator: processNote.trim(),
+          dokumenPendukungRevisi: attachment,
+          lampiranRevisiDraft: attachment ? [attachment] : [],
           lampiran: [attachment],
-          riwayat: [[processTime(), processNote.trim() ? `Operator mengunggah revisi dan mengirim ulang: ${processNote.trim()}` : "Operator mengunggah dokumen revisi dan mengirim ulang ke approval"]]
+          riwayat: [[processTime(), processNote.trim() ? `Operator mengunggah dokumen pendukung dan mengirim ulang: ${processNote.trim()}` : "Operator mengunggah dokumen pendukung dan mengirim ulang ke approval"]]
         });
         onBack();
       }
@@ -6435,22 +6549,6 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
         onUpdateOutgoing?.(detail.nomor, {
           catatanOperator: processNote.trim(),
           riwayat: processNote.trim() ? [[processTime(), `Operator menyimpan catatan proses: ${processNote.trim()}`]] : []
-        });
-        onBack();
-      }
-    });
-  }
-
-  function saveRevisionDraft(event) {
-    const form = event.currentTarget.form;
-    if (!form) return;
-    setConfirm({
-      title: "Simpan draft revisi?",
-      body: `Catatan revisi ${detail.nomor} akan disimpan sebagai draft. Dokumen dapat diunggah saat dikirim ulang ke approval.`,
-      onConfirm: () => {
-        onUpdateOutgoing?.(detail.nomor, {
-          catatanOperator: processNote.trim(),
-          riwayat: processNote.trim() ? [[processTime(), `Operator menyimpan draft revisi: ${processNote.trim()}`]] : []
         });
         onBack();
       }
@@ -6519,8 +6617,8 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
       <header className="dispositionCreateHeader">
         <div>
           <button type="button" className="backLink" onClick={onBack}><LineIcon name="arrowLeft" /> Kembali ke Surat Keluar</button>
-          <h1>{isRejected ? "Revisi Surat Keluar" : "Proses Surat Keluar"}</h1>
-          <p>{isRejected ? "Unggah ulang dokumen surat keluar yang sudah diperbaiki, lalu kirim kembali ke approval pimpinan." : "Ajukan approval, unggah revisi jika ditolak, atau beri nomor dan upload dokumen final setelah disetujui pimpinan."}</p>
+          <h1>{isRejected ? "Revisi Surat Keluar" : isApproved ? "Penomoran Surat Keluar" : "Proses Surat Keluar"}</h1>
+          <p>{isRejected ? "Unggah ulang dokumen surat keluar yang sudah diperbaiki, lalu kirim kembali ke approval pimpinan." : isApproved ? "Input nomor surat dan unggah dokumen final setelah surat disetujui pimpinan." : "Ajukan approval, unggah revisi jika ditolak, atau beri nomor dan upload dokumen final setelah disetujui pimpinan."}</p>
         </div>
         <Status text={detail.status} />
       </header>
@@ -6541,26 +6639,8 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
           </article>
 
           <form className="dispositionForm" onSubmit={(event) => event.preventDefault()}>
-            {isApproved && (
-              <section className="dispositionFormCard dispositionMetaForm">
-                <label>
-                  Nomor Surat <span className="requiredMark">*</span>
-                  <input
-                    type="text"
-                    value={finalNumber}
-                    onChange={(event) => setFinalNumber(event.target.value)}
-                    placeholder="Contoh: 010/SK/STTPU/VI/2026"
-                  />
-                </label>
-                <label>
-                  Tanggal Final
-                  <input type="date" defaultValue={getJakartaDateInputValue()} />
-                </label>
-              </section>
-            )}
-
-            <section className="dispositionFormCard">
-              <h2><LineIcon name="clipboard" /> Catatan Proses</h2>
+            {!isApproved && <section className="dispositionFormCard">
+              <h2><LineIcon name="clipboard" /> {isRejected ? "Form Surat Keluar" : "Catatan Proses"}</h2>
               {isRejected && (
                 <div className="requestMessage">
                   <LineIcon name="info" />
@@ -6572,29 +6652,37 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
                 </div>
               )}
               <div className="dispositionNoteBox">
-                <small>Ringkasan surat</small>
+                <small>Ringkasan Surat</small>
                 <strong>{detail.perihal}</strong>
                 <p>{detail.ringkasan}</p>
               </div>
               <label className="dispositionTextArea">
-                Catatan Operator
-                <textarea rows={5} value={processNote} onChange={(event) => setProcessNote(event.target.value)} placeholder={isRejected ? "Tuliskan keterangan revisi dokumen sebelum dikirim ulang." : "Tuliskan catatan pemeriksaan, revisi, nomor resi, atau keterangan pengiriman."} />
+                {isRejected ? "Keterangan" : "Catatan Operator"}
+                <textarea rows={5} value={processNote} onChange={(event) => setProcessNote(event.target.value)} placeholder={isRejected ? "Tuliskan keterangan revisi atau penjelasan perbaikan dokumen." : "Tuliskan catatan pemeriksaan, revisi, nomor resi, atau keterangan pengiriman."} />
               </label>
               {(isRejected || isApproved) && (
-                <div className="uploadField">
-                  <strong>{isRejected ? "Upload Dokumen Revisi" : "Upload Dokumen"}</strong>
-                  <UploadDropzone name={isRejected ? "revisionDocument" : "finalDocument"} accept=".pdf,application/pdf" formats="PDF (Maks. 10 MB)" />
+                <div className={isRejected ? "uploadField revisionSupportUpload" : "uploadField"}>
+                  {!isRejected && <strong>Upload Dokumen</strong>}
+                  <UploadDropzone
+                    label={isRejected ? <>Upload Dokumen Pendukung <span className="uploadRequiredMark">*</span></> : null}
+                    name={isRejected ? "revisionDocument" : "finalDocument"}
+                    accept=".pdf,application/pdf"
+                    formats={isRejected ? "PDF. Maksimal 10 MB." : "PDF (Maks. 10 MB)"}
+                  />
+                  {isRejected && savedRevisionAttachment && (
+                    <small className="savedDraftFile">Dokumen tersimpan: {savedRevisionAttachment[0]} - {savedRevisionAttachment[1]}</small>
+                  )}
                   {processError && <small className="fieldError">{processError}</small>}
                 </div>
               )}
             </section>
+            }
 
-            <div className={isRejected ? "dispositionSubmitBar revisionSubmitBar" : "dispositionSubmitBar"}>
+            {!isApproved && <div className={isRejected ? "dispositionSubmitBar revisionSubmitBar" : "dispositionSubmitBar"}>
               {isRejected ? (
                 <>
                   <button type="button" className="ghostBtn" onClick={onBack}>Batal</button>
-                  <button type="button" className="softBtn" onClick={saveRevisionDraft}><LineIcon name="doc" /> Simpan Draft</button>
-                  <button type="button" className="primaryBtn" onClick={submitApprovalAgain}><LineIcon name="send" /> Kirim Ajuan</button>
+                  <button type="button" className="primaryBtn" onClick={submitApprovalAgain}><LineIcon name="send" /> Kirim Surat</button>
                 </>
               ) : (
                 <>
@@ -6603,21 +6691,47 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
                 </>
               )}
             </div>
+            }
           </form>
         </div>
 
         <aside className="dispositionPreview">
-          <h3>Alur Surat Keluar</h3>
-          <div className="dispositionFlow">
-            {["Mengajukan surat keluar", "Pimpinan menerima dan memutuskan", "Pimpinan tanda tangan dan upload", "Operator upload dan penomoran"].map((item, index) => (
-              <p key={item}><b>{index + 1}</b>{item}</p>
-            ))}
-          </div>
-          <div className="followupResultBox">
-            <span><LineIcon name="archive" /></span>
-            <strong>Arsip Otomatis</strong>
-            <p>Setelah surat dikirim, dokumen final masuk arsip digital dan dapat dicari lewat nomor surat.</p>
-          </div>
+          {isApproved ? (
+            <form className="operatorFinalForm numberingCard" onSubmit={(event) => event.preventDefault()}>
+              <h2 className="numberingTitle"><span><LineIcon name="doc" /></span> Penomoran Surat</h2>
+              <p>Surat sudah disetujui pimpinan. Operator menginput nomor surat dan mengunggah dokumen final agar tersinkron ke portal user.</p>
+              <label>
+                Nomor Surat <span className="requiredMark">*</span>
+                <input
+                  type="text"
+                  value={finalNumber}
+                  onChange={(event) => setFinalNumber(event.target.value)}
+                  placeholder="Contoh: 001/STT-PU/VI/2026"
+                />
+              </label>
+              <UploadDropzone label={<>Upload Dokumen <span className="uploadRequiredMark">*</span></>} name="finalDocument" accept=".pdf,application/pdf" formats="PDF. Maksimal 10 MB." />
+              <div className="numberingNotice">
+                <LineIcon name="info" />
+                <span>Dokumen final yang diunggah operator akan menjadi file utama di portal user dan arsip.</span>
+                {processError && <small className="fieldError">{processError}</small>}
+              </div>
+              <button type="button" className="primaryBtn" onClick={saveOutgoingProcess}><LineIcon name="check" /> Simpan Nomor Surat</button>
+            </form>
+          ) : (
+            <>
+              <h3>Alur Surat Keluar</h3>
+              <div className="dispositionFlow">
+                {["Mengajukan surat keluar", "Pimpinan menerima dan memutuskan", "Pimpinan tanda tangan dan upload", "Penomoran surat", "Operator upload dokumen final"].map((item, index) => (
+                  <p key={item}><b>{index + 1}</b>{item}</p>
+                ))}
+              </div>
+              <div className="followupResultBox">
+                <span><LineIcon name="archive" /></span>
+                <strong>Arsip Otomatis</strong>
+                <p>Setelah surat dikirim, dokumen final masuk arsip digital dan dapat dicari lewat nomor surat.</p>
+              </div>
+            </>
+          )}
         </aside>
       </section>
     </section>
@@ -6628,11 +6742,20 @@ function Approval({ setConfirm, ajuanRequests = [], outgoingLetters = [], onUpda
   const [approvalAction, setApprovalAction] = useState(null);
   const approvalAjuanRequests = getPimpinanApprovalAjuanRequests(ajuanRequests);
   const ajuanApprovalRows = approvalAjuanRequests
-    .map((item) => [item.nomor, item.jenis, item.pemohon, item.judul || item.keterangan || "-", item.status]);
+    .map((item) => ({
+      row: [item.nomor, item.jenis, item.pemohon, item.judul || item.keterangan || "-", item.status],
+      source: item
+    }));
   const normalizedOutgoingLetters = normalizeOutgoingWorkflowStatus(outgoingLetters);
-  const outgoingApprovalRows = normalizedOutgoingLetters.map(outgoingLetterToRow)
-    .filter((row) => row[4] === "Menunggu Approval");
-  const approvalRows = [...ajuanApprovalRows, ...outgoingApprovalRows];
+  const outgoingApprovalRows = normalizedOutgoingLetters
+    .filter((letter) => letter.status === "Menunggu Approval")
+    .map((letter) => ({
+      row: outgoingLetterToRow(letter),
+      source: letter
+    }));
+  const approvalRows = [...ajuanApprovalRows, ...outgoingApprovalRows]
+    .sort((a, b) => getApprovalSortTime(b.source) - getApprovalSortTime(a.source))
+    .map((item) => item.row);
 
   if (approvalAction) {
     if (approvalAction.type === "ajuan") {
@@ -6651,7 +6774,7 @@ function Approval({ setConfirm, ajuanRequests = [], outgoingLetters = [], onUpda
   return (
     <section className="previewLayout approvalWideLayout">
       <article className="tableShell">
-        <div className="rowBetween"><h3>Menunggu Approval</h3><span className="status waiting">{approvalRows.length} item</span></div>
+        <div className="rowBetween"><h3>Daftar Approval</h3><span className="status waiting">{approvalRows.length} item</span></div>
         <ApprovalTable
           data={approvalRows}
           onProcess={(row) => {
@@ -6694,6 +6817,56 @@ function ApprovalTable({ data, onProcess }) {
       <div className="pagination"><button className="ghostBtn">Sebelumnya</button><span>Halaman 1 dari 4</span><button className="ghostBtn">Berikutnya</button></div>
     </>
   );
+}
+
+function getApprovalSortTime(item) {
+  const values = [
+    item?.createdAt,
+    item?.created_at,
+    item?.updatedAt,
+    item?.updated_at,
+    item?.tanggalInput,
+    item?.tanggal
+  ];
+  const draftDate = String(item?.nomor || "").match(/DRAFT\/SK\/(\d{4})(\d{2})(\d{2})/);
+  if (draftDate) values.unshift(`${draftDate[1]}-${draftDate[2]}-${draftDate[3]}`);
+  for (const value of values) {
+    const timestamp = parseApprovalDate(value);
+    if (timestamp) return timestamp;
+  }
+  return parseApprovalNumber(item?.nomor);
+}
+
+function parseApprovalDate(value) {
+  if (!value) return 0;
+  const raw = String(value).trim();
+  const direct = Date.parse(raw);
+  if (!Number.isNaN(direct)) return direct;
+  const match = raw.toLowerCase().match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
+  if (!match) return 0;
+  const monthMap = {
+    januari: 0,
+    februari: 1,
+    maret: 2,
+    april: 3,
+    mei: 4,
+    juni: 5,
+    juli: 6,
+    agustus: 7,
+    september: 8,
+    oktober: 9,
+    november: 10,
+    desember: 11
+  };
+  const month = monthMap[match[2]];
+  if (month === undefined) return 0;
+  return new Date(Number(match[3]), month, Number(match[1])).getTime();
+}
+
+function parseApprovalNumber(value) {
+  const numbers = String(value || "").match(/\d+/g);
+  if (!numbers?.length) return 0;
+  return Number(numbers.join("").slice(0, 14)) || 0;
 }
 
 function isAjuanReadyForPimpinanApproval(item) {

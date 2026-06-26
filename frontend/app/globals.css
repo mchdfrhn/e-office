@@ -2535,6 +2535,130 @@ td {
   line-height: 1.6;
 }
 
+.letterPreviewSheet {
+  width: min(680px, calc(100% - 36px));
+  min-height: 760px;
+  margin: 18px auto;
+  padding: 44px 48px;
+  color: #16233f;
+  background: #ffffff;
+  border: 1px solid #d9e7ff;
+  border-radius: 6px;
+  box-shadow: 0 18px 34px rgba(37, 58, 104, 0.09);
+}
+
+.letterPreviewKop {
+  padding-bottom: 18px;
+  border-bottom: 3px double #1d4f91;
+  text-align: center;
+}
+
+.letterPreviewKop strong,
+.letterPreviewKop span,
+.letterPreviewKop small {
+  display: block;
+}
+
+.letterPreviewKop strong {
+  color: #123f78;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.letterPreviewKop span {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.letterPreviewKop small {
+  margin-top: 6px;
+  color: #66708d;
+  font-size: 12px;
+}
+
+.letterPreviewMeta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  margin: 24px 0 28px;
+  padding: 16px;
+  background: #f7faff;
+  border: 1px solid #dce9ff;
+  border-radius: 6px;
+}
+
+.letterPreviewMeta div {
+  display: grid;
+  gap: 4px;
+}
+
+.letterPreviewMeta span,
+.letterPreviewFooter span,
+.letterPreviewFooter small {
+  color: #65708f;
+  font-size: 12px;
+}
+
+.letterPreviewMeta b {
+  color: #1d2d56;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.letterPreviewContent {
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.letterPreviewContent h4 {
+  margin: 4px 0 14px;
+  color: #16233f;
+  font-size: 16px;
+}
+
+.letterPreviewContent p {
+  margin: 0 0 14px;
+}
+
+.letterPreviewSubject {
+  font-weight: 700;
+}
+
+.letterPreviewFooter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: 22px;
+  margin-top: 42px;
+  align-items: end;
+}
+
+.letterPreviewFooter b,
+.letterPreviewFooter strong,
+.letterPreviewFooter small {
+  display: block;
+}
+
+.letterPreviewFooter b {
+  margin-top: 4px;
+  color: #1d2d56;
+  font-size: 13px;
+}
+
+.letterPreviewSign {
+  text-align: center;
+}
+
+.letterPreviewSign i {
+  display: block;
+  height: 62px;
+}
+
+.letterPreviewSign strong {
+  color: #16233f;
+  font-size: 14px;
+}
+
 .documentOpenActions {
   display: flex;
   flex-wrap: wrap;
@@ -5848,7 +5972,14 @@ td {
 .revisionSubmitBar button {
   min-width: 142px;
   justify-content: center;
+  gap: 7px;
   font-weight: 900;
+}
+
+.revisionSubmitBar button svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
 }
 
 .dispositionPreview {
@@ -6330,7 +6461,6 @@ td {
 }
 
 .outgoingActions .outlineBtn,
-.outgoingActions .draftBtn,
 .outgoingActions .sendBtn {
   min-height: 54px;
   border-radius: 9px;
@@ -6343,10 +6473,20 @@ td {
   gap: 8px;
 }
 
+.revisionSupportUpload {
+  margin-top: 14px;
+}
+
 .uploadField > strong,
 .fieldBlock > .uploadDropzone > .uploadDropzoneLabel {
   color: #282C70;
   font-size: 13px;
+  font-weight: 800;
+}
+
+.savedDraftFile {
+  color: #1c6b52;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -6456,23 +6596,12 @@ td {
   font-weight: 700;
 }
 
-.outlineBtn,
-.draftBtn {
+.outlineBtn {
   border: 1px solid #96B3E9;
   color: #282C70;
   background: #fff;
 }
 
-.draftBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: #0C61F1;
-  background: #F6F8FC;
-}
-
-.draftBtn svg,
 .sendBtn svg {
   width: 18px;
   height: 18px;
@@ -8379,8 +8508,77 @@ td {
   padding: 9px 12px;
 }
 
+.numberingCard {
+  border-radius: 14px;
+  border-color: #8fb4ff;
+}
+
+.numberingTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  color: #10155f;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.numberingTitle > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: #ffffff;
+  background: #0C61F1;
+}
+
+.numberingTitle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.numberingCard > p {
+  margin: 0 0 18px;
+  color: #5A5F99;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
 .operatorFinalForm {
+  display: grid;
+  gap: 12px;
   margin-top: 12px;
+}
+
+.operatorFinalForm label {
+  display: grid;
+  gap: 8px;
+  color: #10155f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.operatorFinalForm input,
+.operatorFinalForm textarea {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #8fb4ff;
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #282C70;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.operatorFinalForm textarea {
+  min-height: 88px;
+  padding: 10px;
+  resize: vertical;
+  line-height: 1.45;
 }
 
 .operatorFinalForm .uploadDropzone {
@@ -8409,6 +8607,31 @@ td {
   justify-self: center;
   text-align: center;
   line-height: 1.35;
+}
+
+.numberingNotice {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px 10px;
+  align-items: start;
+  padding: 12px 10px;
+  border: 1px solid #ffc38e;
+  border-radius: 9px;
+  color: #a44c0b;
+  background: #fff3e8;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.numberingNotice svg {
+  width: 16px;
+  height: 16px;
+  color: #ff7a1a;
+}
+
+.numberingNotice .fieldError {
+  grid-column: 1 / -1;
 }
 
 .operatorFinalForm .primaryBtn {
