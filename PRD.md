@@ -1670,4 +1670,4 @@ Produk dinyatakan berhasil jika:
 
 Dokumen PRD ini menjadi acuan utama bagi AI Agent dalam membangun aplikasi E-Office berbasis website untuk pengelolaan surat masuk, surat keluar, pengajuan surat, disposisi, arsip digital, laporan, notifikasi, dashboard, dan manajemen pengguna.
 
-Semua implementasi harus mengikuti kebutuhan role, alur proses, validasi, dan acceptance criteria yang telah dijelaskan dalam dokumen ini.n nya mas
+Semua implementasi harus mengikuti kebutuhan role, alur proses, validasi, dan acceptance criteria yang telah dijelaskan dalam dokumen ini.
