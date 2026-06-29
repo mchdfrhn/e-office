@@ -204,6 +204,17 @@ function stripOutgoingAttachmentPayloads(letters) {
   }));
 }
 
+function stripIncomingDocumentPayload(letter) {
+  if (!letter?.document?.dataUrl) return letter;
+  return {
+    ...letter,
+    document: {
+      ...letter.document,
+      dataUrl: ""
+    }
+  };
+}
+
 async function hydrateOutgoingAttachmentPayloads(letters) {
   return Promise.all(letters.map(async (letter) => ({
     ...letter,
@@ -2653,6 +2664,14 @@ function IncomingLetterForm({ role, setConfirm }) {
   const [processingEmailId, setProcessingEmailId] = useState("");
   const [savingIncoming, setSavingIncoming] = useState("");
   const [incomingMode, setIncomingMode] = useState("dashboard");
+  const demoIncomingRows = [
+    ["SM/2025/05/0124", "PT Cipta Karya", "Permohonan Kerja Sama", "22 Mei 2025", "Bagian Akademik", "Baru"],
+    ["SM/2025/05/0123", "Dinas PU Jakarta", "Undangan Rapat Koordinasi", "21 Mei 2025", "Pimpinan", "Diteruskan"],
+    ["SM/2025/05/0122", "Universitas X", "Permintaan Data Penelitian", "21 Mei 2025", "Bagian Administrasi", "Diproses"],
+    ["SM/2025/05/0121", "CV Maju Jaya", "Surat Penawaran", "20 Mei 2025", "Bagian Umum", "Selesai"]
+  ];
+  const [operatorIncomingRows, setOperatorIncomingRows] = useState(demoIncomingRows);
+  const [operatorIncomingLoading, setOperatorIncomingLoading] = useState(false);
   const [emailRows, setEmailRows] = useState([
     {
       id: "email-demo-1",
@@ -2691,10 +2710,50 @@ function IncomingLetterForm({ role, setConfirm }) {
       loadEmailIncoming();
     }
   }, [role, incomingMode]);
+
+  useEffect(() => {
+    if (role === "Pimpinan" || incomingMode !== "dashboard") return undefined;
+    const activeGuard = { current: true };
+    loadOperatorIncomingLetters(activeGuard);
+    return () => {
+      activeGuard.current = false;
+    };
+  }, [role, incomingMode]);
+
   if (role === "Pimpinan") return <PimpinanIncomingReview setConfirm={setConfirm} />;
 
   const recipients = ["Waket I", "Waket II", "Waket III", "Prodi TS", "Prodi TI", "Prodi TL", "Unit LPPM", "Unit LPMI"];
   const instructions = ["Untuk diketahui", "Teliti dan proses lebih lanjut", "Bicarakan dengan saya", "Minta pendapat saudari", "Siapkan jawaban", "Setuju"];
+
+  async function loadOperatorIncomingLetters(activeGuard = { current: true }) {
+    setOperatorIncomingLoading(true);
+    try {
+      const localRows = readLocalJson(LOCAL_INCOMING_KEY, []).map(mapIncomingLetterToOperatorRow);
+      if (getStoredToken() && !isDummyToken()) {
+        const payload = await apiFetch("/incoming-letters?perPage=50");
+        if (!activeGuard.current) return;
+        const apiRows = (payload.data || []).map(mapIncomingLetterToOperatorRow);
+        const byAgenda = new Map();
+        [...apiRows, ...localRows, ...demoIncomingRows].forEach((row) => {
+          if (!byAgenda.has(row[0])) byAgenda.set(row[0], row);
+        });
+        setOperatorIncomingRows([...byAgenda.values()]);
+        return;
+      }
+
+      const byAgenda = new Map();
+      [...localRows, ...demoIncomingRows].forEach((row) => {
+        if (!byAgenda.has(row[0])) byAgenda.set(row[0], row);
+      });
+      if (activeGuard.current) setOperatorIncomingRows([...byAgenda.values()]);
+    } catch (error) {
+      if (activeGuard.current) {
+        setConfirm({ title: "Gagal memuat surat masuk", body: error.message || "Data surat masuk belum dapat dimuat." });
+      }
+    } finally {
+      if (activeGuard.current) setOperatorIncomingLoading(false);
+    }
+  }
 
   async function saveIncomingLetter(event, intent) {
     const form = event.currentTarget.form;
@@ -2756,18 +2815,22 @@ function IncomingLetterForm({ role, setConfirm }) {
         }
       } else {
         const existingRows = readLocalJson(LOCAL_INCOMING_KEY, []);
-        writeLocalJson(LOCAL_INCOMING_KEY, [{
+        writeLocalJson(LOCAL_INCOMING_KEY, [stripIncomingDocumentPayload({
           ...payload,
           id: `local-incoming-${Date.now()}`,
           status: isForward ? "Diteruskan" : "Diregistrasi",
           createdAt: new Date().toISOString()
-        }, ...existingRows]);
+        }), ...existingRows]);
       }
       form.reset();
       form.dispatchEvent(new Event("reset", { bubbles: true }));
+      setIncomingMode("dashboard");
+      await loadOperatorIncomingLetters();
       setConfirm({
-        title: "Surat diteruskan",
-        body: `${agendaNumber} tersimpan, status menjadi diteruskan, dan notifikasi pimpinan dibuat.`
+        title: isForward ? "Surat diteruskan" : "Surat tersimpan",
+        body: isForward
+          ? `${agendaNumber} tersimpan, status menjadi diteruskan, dan notifikasi pimpinan dibuat.`
+          : `${agendaNumber} tersimpan sebagai surat masuk diregistrasi.`
       });
     } catch (error) {
       setConfirm({ title: "Gagal menyimpan surat masuk", body: error.message || "Silakan coba lagi." });
@@ -2845,17 +2908,14 @@ function IncomingLetterForm({ role, setConfirm }) {
   }
 
   if (incomingMode === "dashboard") {
-    const incomingRows = [
-      ["SM/2025/05/0124", "PT Cipta Karya", "Permohonan Kerja Sama", "22 Mei 2025", "Bagian Akademik", "Baru"],
-      ["SM/2025/05/0123", "Dinas PU Jakarta", "Undangan Rapat Koordinasi", "21 Mei 2025", "Pimpinan", "Diteruskan"],
-      ["SM/2025/05/0122", "Universitas X", "Permintaan Data Penelitian", "21 Mei 2025", "Bagian Administrasi", "Diproses"],
-      ["SM/2025/05/0121", "CV Maju Jaya", "Surat Penawaran", "20 Mei 2025", "Bagian Umum", "Selesai"]
-    ];
+    const totalIncoming = operatorIncomingRows.length;
+    const forwardedIncoming = operatorIncomingRows.filter((row) => row[5] === "Diteruskan").length;
+    const waitingIncoming = operatorIncomingRows.filter((row) => ["Baru", "Diregistrasi"].includes(row[5])).length;
     const incomingStats = [
-      ["Total Surat Masuk", "124", "mail", "blue"],
-      ["Belum Diproses", "7", "clipboard", "orange"],
-      ["Sudah Diteruskan", "98", "send", "green"],
-      ["Hari Ini", "11", "calendar", "purple"]
+      ["Total Surat Masuk", String(totalIncoming), "mail", "blue"],
+      ["Belum Diproses", String(waitingIncoming), "clipboard", "orange"],
+      ["Sudah Diteruskan", String(forwardedIncoming), "send", "green"],
+      ["Hari Ini", String(operatorIncomingRows.filter((row) => row[3] === formatDateOnly(new Date().toISOString())).length), "calendar", "purple"]
     ];
     const guideItems = [
       "Catat nomor agenda dan tanggal masuk.",
@@ -2895,7 +2955,7 @@ function IncomingLetterForm({ role, setConfirm }) {
         <section className="incomingDashboardGrid">
           <article className="tableShell incomingListCard">
             <div className="rowBetween incomingListHeader">
-              <h3>Daftar Surat Masuk</h3>
+              <h3>{operatorIncomingLoading ? "Memuat Surat Masuk..." : "Daftar Surat Masuk"}</h3>
               <button type="button" className="primaryBtn" onClick={() => setIncomingMode("manual")}><LineIcon name="plus" /> Input Surat Masuk</button>
             </div>
             <div className="tableScroll">
@@ -2912,7 +2972,7 @@ function IncomingLetterForm({ role, setConfirm }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {incomingRows.map(([agenda, sender, subject, date, target, status]) => (
+                  {operatorIncomingRows.map(([agenda, sender, subject, date, target, status]) => (
                     <tr key={agenda}>
                       <td>{agenda}</td>
                       <td>{sender}</td>
@@ -3166,6 +3226,16 @@ function mapIncomingLetterToPimpinanRow(item) {
   return row;
 }
 
+function mapIncomingLetterToOperatorRow(item) {
+  const agenda = item.agenda_number || item.agendaNumber || item.agenda || "-";
+  const sender = item.sender || "Pengirim eksternal";
+  const subject = item.subject || "Surat masuk eksternal";
+  const receivedDate = formatDateOnly(item.received_date || item.receivedDate || item.created_at || item.createdAt);
+  const target = item.forwarded_to_name || item.forwardedToName || (item.leaderTargets?.length ? item.leaderTargets.join(", ") : "Pimpinan");
+  const status = incomingStatusLabel(item.status);
+  return [agenda, sender, subject, receivedDate, target, status];
+}
+
 function getIncomingLetterDetail(row) {
   if (row?.detail) return row.detail;
   const [agenda, nomorSurat, pengirim, perihal, status] = row;
@@ -3334,27 +3404,6 @@ function PimpinanIncomingReview({ setConfirm }) {
             onDetail={(row) => setIncomingAction({ mode: "detail", row })}
             onProcess={(row) => setIncomingAction({ mode: "process", row })}
           />
-
-          <section className="incomingBox leadershipComments">
-            <div className="rowBetween">
-              <div>
-                <h3>Komentar Pimpinan</h3>
-                <p>Isi arahan setelah membaca surat dan dokumen yang diteruskan operator.</p>
-              </div>
-              <span className="status waiting">Dapat diisi</span>
-            </div>
-            <div className="commentGrid">
-              {["Bapak Ketua", "Waket 1", "Waket 2", "Waket 3"].map((name) => (
-                <label key={name}>
-                  {name}
-                  <textarea rows={3} placeholder={`Tulis komentar ${name}`} />
-                </label>
-              ))}
-            </div>
-            <div className="incomingActions compact">
-              <button type="button" className="primaryBtn" onClick={() => setConfirm({ title: "Kirim komentar pimpinan?", body: "Komentar akan tersimpan, tampil di portal operator, dan aktivitasnya masuk audit trail." })}>Kirim Komentar</button>
-            </div>
-          </section>
         </article>
       </section>
     </section>
