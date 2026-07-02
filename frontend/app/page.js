@@ -593,6 +593,13 @@ const initialOutgoingLetters = rows["Surat Keluar"].map(([nomor, jenis, tujuan, 
 }));
 
 const initialAjuanRequests = [
+  { nomor: "AJ/2026/06/00137", jenis: "Surat Lainnya - -", pemohon: "Budi Santoso", unit: "Kepegawaian", tanggal: "27 Juni 2026", status: "Selesai", nomorSuratFinal: "STTPU/KPG/VI/2026/137" },
+  { nomor: "AJ/2026/06/00136", jenis: "Surat Keterangan", pemohon: "Budi Santoso", unit: "Kepegawaian", tanggal: "26 Juni 2026", status: "Selesai", nomorSuratFinal: "STTPU/KPG/VI/2026/136" },
+  { nomor: "AJ/2026/06/00135", jenis: "Surat Keputusan", pemohon: "Budi Santoso", unit: "Kepegawaian", tanggal: "25 Juni 2026", status: "Selesai", nomorSuratFinal: "STTPU/KPG/VI/2026/135" },
+  { nomor: "AJ/2026/06/00134", jenis: "Surat Lainnya - -", pemohon: "Budi Santoso", unit: "Kepegawaian", tanggal: "25 Juni 2026", status: "Selesai", nomorSuratFinal: "STTPU/KPG/VI/2026/134" },
+  { nomor: "AJ/2026/06/00133", jenis: "Surat Edaran/Surat Pengumuman", pemohon: "Budi Santoso", unit: "Kepegawaian", tanggal: "14 Juni 2026", status: "Selesai", nomorSuratFinal: "STTPU/KPG/VI/2026/133" },
+  { nomor: "AJ/2026/06/00132", jenis: "Surat Keputusan", pemohon: "Budi Santoso", unit: "Kepegawaian", tanggal: "13 Juni 2026", status: "Selesai", nomorSuratFinal: "STTPU/KPG/VI/2026/132" },
+  { nomor: "AJ/2026/06/00131", jenis: "Surat Edaran/Surat Pengumuman", pemohon: "Budi Santoso", unit: "Akademik", tanggal: "1 Juni 2026", status: "Selesai", nomorSuratFinal: "STTPU/AKD/VI/2026/131" },
   {
     nomor: "AJ/2025/05/00131",
     jenis: "Surat Izin Penelitian",
@@ -613,6 +620,7 @@ const initialAjuanRequests = [
       ["Kartu_Mahasiswa.pdf", "256 KB", "Diunggah 20 Mei 2025, 16:05 WIB"]
     ]
   },
+  { nomor: "AJ/2025/05/00130", jenis: "Surat Tugas", pemohon: "Budi Santoso", unit: "Umum", tanggal: "20 Mei 2025", status: "Perlu Verifikasi" },
   { nomor: "AJ/2025/05/00129", jenis: "Surat Permohonan", pemohon: "Sari Pegawai", unit: "Keuangan", tanggal: "19 Mei 2025", status: "Disetujui" },
   { nomor: "AJ/2025/05/00128", jenis: "Surat Keterangan", pemohon: "Andi Wijaya", unit: "Akademik", tanggal: "19 Mei 2025", status: "Menunggu Approval" },
   { nomor: "AJ/2025/05/00127", jenis: "Surat Undangan", pemohon: "Rina Lestari", unit: "Kemahasiswaan", tanggal: "19 Mei 2025", status: "Menunggu Approval" },
@@ -1524,7 +1532,7 @@ function PimpinanDashboard({ setView, ajuanRequests = [] }) {
             <tbody>
               {reviewRows.map((row) => (
                 <tr key={row[0]}>
-                  <td>{row[0]}</td><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td><td><Status text={row[4]} /></td><td><button className="viewBtn" aria-label={`Review ${row[0]}`}><LineIcon name="eye" /></button></td>
+                  <td>{row[0]}</td><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td><td><Status text={row[4]} /></td><td><button className="viewBtn" aria-label={`Review ${row[0]}`}><LineIcon name="edit" /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -3393,7 +3401,7 @@ function PimpinanIncomingReview({ setConfirm }) {
       <section className="previewLayout singleColumn">
         <article className="tableShell">
           <div className="rowBetween">
-            <h3>Surat Masuk Diteruskan</h3>
+            <h3>Daftar Surat Masuk</h3>
             <span className="status waiting">{incomingLoading ? "Memuat..." : `${incomingRows.filter((row) => row[4] === "Diteruskan").length} perlu review`}</span>
           </div>
           <DataTable
@@ -3499,103 +3507,137 @@ function PimpinanIncomingDetail({ detail, onBack }) {
 }
 
 function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfirm }) {
+  const infoRows = [
+    ["Nomor Agenda", detail.agenda],
+    ["Tanggal Terima", detail.tanggalTerima],
+    ["Nomor Surat", detail.nomorSurat],
+    ["Tanggal Surat", detail.tanggalSurat],
+    ["Pengirim", detail.pengirim],
+    ["Perihal", detail.perihal],
+    ["Sifat", detail.sifat],
+    ["Lampiran", `${detail.lampiran?.length || 0} (satu) berkas`]
+  ];
+  const processSteps = [
+    ["Diajukan oleh Operator", "Rina Operator - 24 Juni 2026, 09:15 WIB", "Selesai", true],
+    ["Menunggu Persetujuan Pimpinan", "Surat sedang dalam proses persetujuan", "Saat ini", true],
+    ["Disposisi Diteruskan", "Menunggu tindakan unit terkait", "", false],
+    ["Selesai", "Surat telah ditindaklanjuti", "", false]
+  ];
+  const documentRows = [
+    [detail.lampiran?.[0]?.[0] || "Surat Permohonan.pdf", "PDF", detail.lampiran?.[0]?.[1] || "245 KB", "red"],
+    ["Proposal Penelitian.pdf", "PDF", "1.14 MB", "green"]
+  ];
+
   return (
-    <section className="incomingPage dispositionCreatePage">
-      <header className="dispositionCreateHeader">
-        <div>
-          <button type="button" className="backLink" onClick={onBack}><LineIcon name="arrowLeft" /> Kembali ke Review Surat Masuk</button>
-          <h1>Proses Surat Masuk</h1>
-          <p>Beri komentar pimpinan dan tentukan apakah surat diteruskan menjadi disposisi.</p>
+    <section className="incomingPage processIncomingPage">
+      <header className="processIncomingHeader">
+        <nav className="processBreadcrumb" aria-label="Breadcrumb">
+          <button type="button" onClick={onBack}><LineIcon name="arrowLeft" /> Disposisi</button>
+          <span>/</span>
+          <b>Proses Surat Masuk</b>
+          <span>/</span>
+          <b>Detail</b>
+        </nav>
+        <div className="processTitleRow">
+          <div>
+            <h1>Proses Surat Masuk</h1>
+            <p>Tinjau surat yang diajukan oleh operator dan tentukan disposisi/tindak lanjut.</p>
+          </div>
+          <button type="button" className="processBackBtn" onClick={onBack}><LineIcon name="arrowLeft" /> Kembali</button>
         </div>
-        <Status text={detail.status} />
       </header>
 
-      <section className="dispositionCreateGrid">
-        <div className="dispositionMain">
-          <article className="dispositionSourceCard">
-            <div className="rowBetween">
-              <h2><LineIcon name="mail" /> Surat Sumber</h2>
-              <span className={detail.sifat === "Segera" ? "priority high" : "priority"}>{detail.sifat}</span>
-            </div>
-            <div className="dispositionSourceRows">
-              <DetailItem icon="calendar" label="Nomor Agenda" value={detail.agenda} />
-              <DetailItem icon="doc" label="Nomor Surat" value={detail.nomorSurat} />
-              <DetailItem icon="user" label="Pengirim" value={detail.pengirim} />
-              <DetailItem icon="info" label="Perihal" value={detail.perihal} />
-            </div>
+      <div className="processNotice"><LineIcon name="info" /> Mohon tinjau detail surat, beri arahan/disposisi, kemudian teruskan ke pihak terkait.</div>
+
+      <section className="processIncomingGrid">
+        <div className="processLeftColumn">
+          <article className="processCard processInfoCard">
+            <h2><LineIcon name="doc" /> Informasi Surat</h2>
+            <dl>
+              {infoRows.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{label === "Sifat" ? <span className="processPriority">{value}</span> : value}</dd>
+                </div>
+              ))}
+            </dl>
           </article>
 
-          <form className="dispositionForm" onSubmit={(event) => event.preventDefault()}>
-            <section className="dispositionFormCard">
-              <h2><LineIcon name="edit" /> Komentar Pimpinan</h2>
-              <label className="dispositionTextArea">
-                Catatan Review
-                <textarea rows={5} placeholder="Tuliskan komentar, arahan awal, atau catatan sebelum disposisi dibuat." />
-              </label>
-            </section>
-
-            <section className="dispositionFormCard">
-              <h2><LineIcon name="clipboard" /> Keputusan Review</h2>
-              <div className="reviewDecisionGrid">
-                {[
-                  ["Perlu Disposisi", "Surat membutuhkan arahan dan tindak lanjut unit kerja.", true],
-                  ["Selesai Tanpa Disposisi", "Surat cukup dibaca dan dicatat sebagai selesai.", false],
-                  ["Minta Perbaikan Data", "Kembalikan ke operator untuk melengkapi metadata atau dokumen.", false]
-                ].map(([title, body, checked]) => (
-                  <label key={title}>
-                    <input type="radio" name="incomingDecision" defaultChecked={checked} />
-                    <span><strong>{title}</strong><small>{body}</small></span>
-                  </label>
-                ))}
-              </div>
-            </section>
-
-            <section className="dispositionFormCard dispositionMetaForm">
+          <form className="processCard processDispositionForm" onSubmit={(event) => event.preventDefault()}>
+            <h2><LineIcon name="edit" /> Form Disposisi</h2>
+            <label className="processWideField">
+              <span>Instruksi / Arahan <b>*</b></span>
+              <textarea rows={4} maxLength={500} placeholder="Tulis arahan atau instruksi tindak lanjut untuk unit terkait..." />
+              <small>0 / 500</small>
+            </label>
+            <label className="processWideField">
+              <span>Tindak Lanjut Kepada <b>*</b></span>
+              <select defaultValue="">
+                <option value="" disabled>Pilih unit atau pihak yang dituju...</option>
+                <option>Bagian Umum</option>
+                <option>Bagian Akademik</option>
+                <option>Bagian Keuangan</option>
+                <option>Unit LPPM</option>
+              </select>
+            </label>
+            <div className="processFormTwo">
               <label>
-                Status Review
-                <select defaultValue="siap_disposisi">
-                  <option value="siap_disposisi">Siap Disposisi</option>
-                  <option value="selesai">Selesai</option>
-                  <option value="perlu_perbaikan">Perlu Perbaikan</option>
-                </select>
+                <span>Batas Waktu</span>
+                <input type="date" />
               </label>
               <label>
-                Sifat Surat
-                <select defaultValue={detail.sifat.toLowerCase()}>
-                  <option value="biasa">Biasa</option>
+                <span>Prioritas</span>
+                <select defaultValue="normal">
+                  <option value="normal">Normal</option>
                   <option value="penting">Penting</option>
                   <option value="segera">Segera</option>
                 </select>
               </label>
-              <label className="dispositionTextArea">
-                Catatan untuk Operator
-                <textarea rows={3} placeholder="Opsional, isi jika data surat perlu dikoreksi atau dilengkapi." />
-              </label>
-            </section>
-
-            <div className="dispositionSubmitBar">
-              <button type="button" className="softBtn" onClick={() => setConfirm({ title: "Simpan komentar pimpinan?", body: `Komentar untuk ${detail.agenda} akan tersimpan dan masuk audit trail.` })}><LineIcon name="edit" /> Simpan Komentar</button>
-              <button type="button" className="primaryBtn" onClick={onCreateDisposition}><LineIcon name="send" /> Lanjut Buat Disposisi</button>
+            </div>
+            <div className="processActions">
+              <button type="button" className="processDraftBtn" onClick={() => setConfirm({ title: "Simpan draft disposisi?", body: `Draft arahan untuk ${detail.agenda} akan tersimpan sementara.` })}>Simpan Draft</button>
+              <button type="button" className="processSubmitBtn" onClick={onCreateDisposition}><LineIcon name="send" /> Teruskan Disposisi</button>
             </div>
           </form>
         </div>
 
-        <aside className="dispositionPreview">
-          <h3>Preview Dokumen Surat</h3>
-          <div className="documentFrame">
-            <div className="documentPage">
-              <h4>SURAT MASUK</h4>
-              <p>{detail.agenda} | {detail.nomorSurat}</p>
-              <div className="docLines"><i /><i /><i /><i /></div>
+        <div className="processRightColumn">
+          <article className="processCard processDocumentCard">
+            <div className="processCardHeader">
+              <h2><LineIcon name="doc" /> Preview Dokumen</h2>
+              <button type="button"><LineIcon name="upload" /> Unduh Semua</button>
             </div>
-          </div>
-          <div className="dispositionFlow">
-            <h3>Alur Proses</h3>
-            {["Review surat", "Pilih keputusan", "Simpan komentar", "Lanjut disposisi"].map((item, index) => (
-              <p key={item}><b>{index + 1}</b>{item}</p>
-            ))}
-          </div>
-        </aside>
+            <div className="processDocumentList">
+              {documentRows.map(([name, type, size, tone]) => (
+                <div className="processDocumentItem" key={name}>
+                  <span className={`processFileBadge ${tone}`}>{type}</span>
+                  <div>
+                    <strong>{name}</strong>
+                    <small>{type} - {size}</small>
+                  </div>
+                  <button type="button" className="processViewDoc"><LineIcon name="eye" /> Lihat</button>
+                  <button type="button" className="processDownloadDoc" aria-label={`Unduh ${name}`}><LineIcon name="upload" /></button>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="processCard processFlowCard">
+            <h2><LineIcon name="clock" /> Alur Proses</h2>
+            <div className="processStepList">
+              {processSteps.map(([title, body, badge, active], index) => (
+                <div className={active ? "active" : ""} key={title}>
+                  <span>{active ? <LineIcon name="check" /> : index + 1}</span>
+                  <div>
+                    <strong>{title}</strong>
+                    <small>{body}</small>
+                  </div>
+                  {badge && <b className={badge === "Selesai" ? "done" : "current"}>{badge}</b>}
+                </div>
+              ))}
+            </div>
+          </article>
+        </div>
       </section>
     </section>
   );
@@ -5987,7 +6029,7 @@ function DataTable({
   return (
     <>
       <div className="tableScroll">
-        <table className="approvalTable">
+        <table className={view === "Surat Masuk Pimpinan" ? "approvalTable pimpinanIncomingReviewTable" : "approvalTable"}>
           <thead><tr>{heads.map((head) => <th key={head}>{head}</th>)}<th>Aksi</th></tr></thead>
           <tbody>
             {data.map((row) => {
@@ -6036,6 +6078,12 @@ function DataTable({
                         <button className="softBtn" onClick={() => onAuditDetail ? onAuditDetail(row) : setConfirm({ title: "Buka detail audit?", body: "Detail audit berisi waktu, user, modul, target, perangkat, dan perubahan data." })}>Detail</button>
                         <button className="softBtn" onClick={() => onAuditReview ? onAuditReview(row) : setConfirm({ title: "Tinjau audit?", body: "Log audit akan ditinjau dan diberi catatan administrator." })}>Proses</button>
                       </div>
+                    ) : view === "Surat Masuk Pimpinan" ? (
+                      <div className="actions">
+                        <button className="viewBtn edit" onClick={() => onProcess ? onProcess(row) : setConfirm({ title: "Review surat masuk?", body: "Surat masuk akan dibuka untuk komentar pimpinan dan proses disposisi." })} aria-label={`Review ${row[0]}`}>
+                          <LineIcon name="edit" />
+                        </button>
+                      </div>
                     ) : (
                       <div className="actions">
                         <button className="softBtn" onClick={() => onDetail ? onDetail(row) : setConfirm({ title: "Buka detail?", body: "Detail berisi preview dokumen, status proses, dan riwayat aktivitas." })}>Detail</button>
@@ -6049,7 +6097,18 @@ function DataTable({
           </tbody>
         </table>
       </div>
-      <div className="pagination"><button className="ghostBtn">Sebelumnya</button><span>Halaman 1 dari 4</span><button className="ghostBtn">Berikutnya</button></div>
+      {view === "Surat Masuk Pimpinan" ? (
+        <div className="pimpinanIncomingPagination">
+          <span>Menampilkan {data.length} dari {data.length} data</span>
+          <div>
+            <button className="ghostBtn">Sebelumnya</button>
+            <button className="active">1</button>
+            <button className="ghostBtn">Berikutnya</button>
+          </div>
+        </div>
+      ) : (
+        <div className="pagination"><button className="ghostBtn">Sebelumnya</button><span>Halaman 1 dari 4</span><button className="ghostBtn">Berikutnya</button></div>
+      )}
     </>
   );
 }
