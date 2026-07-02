@@ -215,6 +215,19 @@ function stripIncomingDocumentPayload(letter) {
   };
 }
 
+async function hydrateIncomingDocumentPayloads(letters) {
+  return Promise.all(letters.map(async (letter) => {
+    if (!letter?.document?.storageKey || letter.document.dataUrl) return letter;
+    return {
+      ...letter,
+      document: {
+        ...letter.document,
+        dataUrl: await getAttachmentPayload(letter.document.storageKey)
+      }
+    };
+  }));
+}
+
 async function hydrateOutgoingAttachmentPayloads(letters) {
   return Promise.all(letters.map(async (letter) => ({
     ...letter,
@@ -2399,12 +2412,96 @@ function buildAttachmentPlaceholder(attachment, detail) {
 
 function downloadAttachment(attachment, detail) {
   const [name, , , dataUrl] = attachment;
+  const downloadPath = getAttachmentDownloadPath(attachment);
+  if (downloadPath) {
+    downloadAuthorizedAttachment(attachment).catch((error) => {
+      window.alert(error.message || "Dokumen belum dapat diunduh.");
+    });
+    return;
+  }
   if (dataUrl) {
     downloadDataUrl(name, dataUrl);
     return;
   }
   const placeholder = buildAttachmentPlaceholder(attachment, detail);
   downloadBlob(name, placeholder.content, placeholder.type);
+}
+
+function getAttachmentDownloadPath(attachment) {
+  return attachment?.[6] || "";
+}
+
+function getAttachmentStorageKey(attachment) {
+  return attachment?.[5] || "";
+}
+
+async function fetchAuthorizedDocument(path) {
+  const token = getStoredToken();
+  if (!token || isDummyToken(token)) {
+    throw new Error("Sesi backend tidak aktif untuk membuka dokumen ini.");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }, 15000);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.message || "Dokumen belum dapat dibuka.");
+  }
+  return response.blob();
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Dokumen gagal dibaca untuk pratinjau."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function hydrateAuthorizedAttachment(attachment) {
+  if (!attachment || attachment?.[3]) return attachment;
+  const path = getAttachmentDownloadPath(attachment);
+  if (path) {
+    const blob = await fetchAuthorizedDocument(path);
+    return [
+      attachment[0],
+      attachment[1] || formatFileSize(blob.size),
+      attachment[2],
+      await blobToDataUrl(blob),
+      attachment[4] || blob.type,
+      attachment[5],
+      path
+    ];
+  }
+  const storageKey = getAttachmentStorageKey(attachment);
+  if (storageKey) {
+    const dataUrl = await getAttachmentPayload(storageKey);
+    if (dataUrl) {
+      return [
+        attachment[0],
+        attachment[1],
+        attachment[2],
+        dataUrl,
+        attachment[4],
+        storageKey,
+        attachment[6]
+      ];
+    }
+  }
+  return attachment;
+}
+
+async function downloadAuthorizedAttachment(attachment) {
+  const blob = await fetchAuthorizedDocument(getAttachmentDownloadPath(attachment));
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = safeFilename(attachment?.[0] || "dokumen.pdf");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function createDataUrl(content, type) {
@@ -2439,21 +2536,38 @@ function createLetterDocumentAttachment(spec) {
   return [filename, formatFileSize(new Blob([pdf]).size), spec.meta || "Dibuat otomatis oleh sistem", createDataUrl(pdf, "application/pdf"), "application/pdf"];
 }
 
-function previewLetterDocument(spec, setPreviewDocument) {
+async function previewLetterDocument(spec, setPreviewDocument, onError) {
   if (spec.attachment) {
-    setPreviewDocument(spec.attachment);
+    try {
+      const hydratedAttachment = await hydrateAuthorizedAttachment(spec.attachment);
+      if (spec.requireUploadedFile && !hydratedAttachment?.[3]) {
+        throw new Error("File asli yang di-upload operator belum tersedia untuk pratinjau. Silakan upload ulang dokumen atau gunakan data surat yang tersimpan di backend.");
+      }
+      setPreviewDocument(hydratedAttachment);
+    } catch (error) {
+      onError?.(error);
+    }
     return;
   }
   setPreviewDocument(createLetterDocumentAttachment(spec));
 }
 
-function downloadLetterDocument(spec) {
+async function downloadLetterDocument(spec, onError) {
   if (spec.attachment) {
-    downloadAttachment(spec.attachment, {
-      judul: spec.title,
-      tujuan: spec.party,
-      keterangan: spec.summary
-    });
+    try {
+      if (getAttachmentDownloadPath(spec.attachment)) {
+        await downloadAuthorizedAttachment(spec.attachment);
+      } else {
+        const hydratedAttachment = await hydrateAuthorizedAttachment(spec.attachment);
+        downloadAttachment(hydratedAttachment, {
+          judul: spec.title,
+          tujuan: spec.party,
+          keterangan: spec.summary
+        });
+      }
+    } catch (error) {
+      onError?.(error);
+    }
     return;
   }
   downloadAttachment(createLetterDocumentAttachment(spec), {
@@ -2463,11 +2577,11 @@ function downloadLetterDocument(spec) {
   });
 }
 
-function DocumentOpenButtons({ spec, onPreview, compact = false }) {
+function DocumentOpenButtons({ spec, onPreview, compact = false, onError }) {
   return (
     <div className={compact ? "documentOpenActions compact" : "documentOpenActions"}>
-      <button type="button" className="softBtn" onClick={() => previewLetterDocument(spec, onPreview)}><LineIcon name="eye" /> Pratinjau</button>
-      <button type="button" className="primaryBtn" onClick={() => downloadLetterDocument(spec)}><LineIcon name="upload" /> Unduh</button>
+      <button type="button" className="softBtn" onClick={() => previewLetterDocument(spec, onPreview, onError)}><LineIcon name="eye" /> Pratinjau</button>
+      <button type="button" className="primaryBtn" onClick={() => downloadLetterDocument(spec, onError)}><LineIcon name="upload" /> Unduh</button>
     </div>
   );
 }
@@ -2483,7 +2597,9 @@ function incomingDocumentSpec(detail, attachment) {
     party: detail.pengirim,
     status: detail.status,
     summary: detail.ringkasan,
-    meta
+    meta,
+    attachment,
+    requireUploadedFile: Boolean(attachment)
   };
 }
 
@@ -2547,10 +2663,6 @@ function AttachmentPreviewModal({ attachment, detail, onClose }) {
               <span>Preview penuh tersedia untuk PDF dan gambar. File ini tetap bisa diunduh.</span>
             </div>
           )}
-        </div>
-        <div className="actions end">
-          <button type="button" className="ghostBtn" onClick={onClose}>Tutup</button>
-          <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="upload" /> Unduh</button>
         </div>
       </section>
     </div>
@@ -2736,13 +2848,13 @@ function IncomingLetterForm({ role, setConfirm }) {
   async function loadOperatorIncomingLetters(activeGuard = { current: true }) {
     setOperatorIncomingLoading(true);
     try {
-      const localRows = readLocalJson(LOCAL_INCOMING_KEY, []).map(mapIncomingLetterToOperatorRow);
+      const localRows = purgeRemovedIncomingLettersFromLocalStorage().map(mapIncomingLetterToOperatorRow);
       if (getStoredToken() && !isDummyToken()) {
         const payload = await apiFetch("/incoming-letters?perPage=50");
         if (!activeGuard.current) return;
-        const apiRows = (payload.data || []).map(mapIncomingLetterToOperatorRow);
+        const apiRows = getActiveIncomingLetters(payload.data || []).map(mapIncomingLetterToOperatorRow);
         const byAgenda = new Map();
-        [...apiRows, ...localRows, ...demoIncomingRows].forEach((row) => {
+        [...apiRows, ...localRows, ...getActiveIncomingLetters(demoIncomingRows)].forEach((row) => {
           if (!byAgenda.has(row[0])) byAgenda.set(row[0], row);
         });
         setOperatorIncomingRows([...byAgenda.values()]);
@@ -2750,7 +2862,7 @@ function IncomingLetterForm({ role, setConfirm }) {
       }
 
       const byAgenda = new Map();
-      [...localRows, ...demoIncomingRows].forEach((row) => {
+      [...localRows, ...getActiveIncomingLetters(demoIncomingRows)].forEach((row) => {
         if (!byAgenda.has(row[0])) byAgenda.set(row[0], row);
       });
       if (activeGuard.current) setOperatorIncomingRows([...byAgenda.values()]);
@@ -2775,6 +2887,10 @@ function IncomingLetterForm({ role, setConfirm }) {
     }
 
     const agendaNumber = String(formData.get("agendaNumber") || "").trim() || `AG-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
+    const documentStorageKey = file?.name ? makeAttachmentKey("incoming", agendaNumber, file) : "";
+    const documentDataUrl = file?.name ? await readFileAsDataUrl(file) : "";
+    if (documentStorageKey && documentDataUrl) await saveAttachmentPayload(documentStorageKey, documentDataUrl);
+
     const payload = {
       agendaNumber,
       letterNumber: String(formData.get("letterNumber") || "").trim(),
@@ -2792,7 +2908,8 @@ function IncomingLetterForm({ role, setConfirm }) {
         name: file.name,
         size: file.size,
         type: file.type,
-        dataUrl: await readFileAsDataUrl(file)
+        dataUrl: documentDataUrl,
+        storageKey: documentStorageKey
       } : null
     };
 
@@ -3204,6 +3321,36 @@ function incomingStatusLabel(status) {
   return status || "Diteruskan";
 }
 
+function normalizeIncomingIdentity(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function isRemovedIncomingLetter(item) {
+  const agenda = normalizeIncomingIdentity(item?.agenda_number || item?.agendaNumber || item?.agenda || item?.[0]);
+  const letterNumber = normalizeIncomingIdentity(item?.letter_number || item?.letterNumber || item?.nomorSurat || item?.[1]);
+  const sender = normalizeIncomingIdentity(item?.sender || item?.pengirim || item?.[2]);
+  const subject = normalizeIncomingIdentity(item?.subject || item?.perihal || item?.[3]);
+  return (
+    ["ag20267710", "ag202677i0"].includes(agenda) ||
+    (
+      letterNumber === "293062026" &&
+      sender === "pdamdepok" &&
+      subject === "kunjungankesttpujakarta"
+    )
+  );
+}
+
+function getActiveIncomingLetters(items = []) {
+  return items.filter((item) => !isRemovedIncomingLetter(item));
+}
+
+function purgeRemovedIncomingLettersFromLocalStorage() {
+  const existingRows = readLocalJson(LOCAL_INCOMING_KEY, []);
+  const activeRows = getActiveIncomingLetters(existingRows);
+  if (activeRows.length !== existingRows.length) writeLocalJson(LOCAL_INCOMING_KEY, activeRows);
+  return activeRows;
+}
+
 function mapIncomingLetterToPimpinanRow(item) {
   const agenda = item.agenda_number || item.agendaNumber || item.agenda || "-";
   const letterNumber = item.letter_number || item.letterNumber || "-";
@@ -3212,6 +3359,18 @@ function mapIncomingLetterToPimpinanRow(item) {
   const status = incomingStatusLabel(item.status);
   const row = [agenda, letterNumber, sender, subject, status];
   const document = item.document;
+  const documentName = document?.original_name || document?.name;
+  const documentAttachment = documentName
+    ? [[
+        documentName,
+        formatFileSize(document.file_size_bytes || document.size || 1),
+        document.uploaded_at ? `Diunggah operator ${formatDateTime(document.uploaded_at)}` : "Diunggah operator",
+        document.dataUrl || "",
+        document.mime_type || document.type || "application/pdf",
+        document.storageKey || "",
+        document.download_path || ""
+      ]]
+    : [["Dokumen_Surat_Masuk.pdf", "512 KB", "Diunggah operator", "", "application/pdf"]];
   row.detail = {
     agenda,
     nomorSurat: letterNumber,
@@ -3223,9 +3382,7 @@ function mapIncomingLetterToPimpinanRow(item) {
     sifat: item.letter_nature_name || "Biasa",
     tujuanAwal: item.leaderTargets?.length ? item.leaderTargets : ["Pimpinan"],
     ringkasan: item.summary || subject,
-    lampiran: document?.original_name || document?.name
-      ? [[document.original_name || document.name, formatFileSize(document.file_size_bytes || document.size || 1), "Diunggah operator"]]
-      : [["Dokumen_Surat_Masuk.pdf", "512 KB", "Diunggah operator"]],
+    lampiran: documentAttachment,
     riwayat: [
       [formatDateTime(item.created_at || item.createdAt), "Operator meregistrasi surat masuk"],
       [formatDateTime(item.forwarded_at || item.forwardedAt || item.created_at || item.createdAt), "Surat diteruskan kepada pimpinan"]
@@ -3323,18 +3480,18 @@ function PimpinanIncomingReview({ setConfirm }) {
     async function loadForwardedIncomingLetters() {
       setIncomingLoading(true);
       try {
-        const forwardedLocalRows = readLocalJson(LOCAL_INCOMING_KEY, [])
+        const forwardedLocalRows = (await hydrateIncomingDocumentPayloads(purgeRemovedIncomingLettersFromLocalStorage()))
           .filter((item) => String(item.status || "").toLowerCase() === "diteruskan")
           .map(mapIncomingLetterToPimpinanRow);
 
         if (getStoredToken() && !isDummyToken()) {
           const payload = await apiFetch("/incoming-letters?perPage=50");
           if (!active) return;
-          const apiRows = (payload.data || [])
+          const apiRows = getActiveIncomingLetters(payload.data || [])
             .filter((item) => ["diteruskan", "didisposisikan", "ditindaklanjuti", "selesai"].includes(String(item.status || "").toLowerCase()))
             .map(mapIncomingLetterToPimpinanRow);
           const byAgenda = new Map();
-          [...apiRows, ...forwardedLocalRows, ...demoIncomingRows].forEach((row) => {
+          [...apiRows, ...forwardedLocalRows, ...getActiveIncomingLetters(demoIncomingRows)].forEach((row) => {
             if (!byAgenda.has(row[0])) byAgenda.set(row[0], row);
           });
           setIncomingRows([...byAgenda.values()]);
@@ -3342,7 +3499,7 @@ function PimpinanIncomingReview({ setConfirm }) {
         }
 
         const byAgenda = new Map();
-        [...forwardedLocalRows, ...demoIncomingRows].forEach((row) => {
+        [...forwardedLocalRows, ...getActiveIncomingLetters(demoIncomingRows)].forEach((row) => {
           if (!byAgenda.has(row[0])) byAgenda.set(row[0], row);
         });
         if (active) setIncomingRows([...byAgenda.values()]);
@@ -3507,6 +3664,7 @@ function PimpinanIncomingDetail({ detail, onBack }) {
 }
 
 function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfirm }) {
+  const [previewDocument, setPreviewDocument] = useState(null);
   const infoRows = [
     ["Nomor Agenda", detail.agenda],
     ["Tanggal Terima", detail.tanggalTerima],
@@ -3523,10 +3681,27 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
     ["Disposisi Diteruskan", "Menunggu tindakan unit terkait", "", false],
     ["Selesai", "Surat telah ditindaklanjuti", "", false]
   ];
-  const documentRows = [
-    [detail.lampiran?.[0]?.[0] || "Surat Permohonan.pdf", "PDF", detail.lampiran?.[0]?.[1] || "245 KB", "red"],
-    ["Proposal Penelitian.pdf", "PDF", "1.14 MB", "green"]
-  ];
+  const documentRows = (detail.lampiran?.length ? detail.lampiran : [["Dokumen_Surat_Masuk.pdf", "512 KB", "Diunggah operator", "", "application/pdf"]])
+    .map((attachment, index) => {
+      const name = attachment?.[0] || `Dokumen_Surat_Masuk_${index + 1}.pdf`;
+      const ext = getAttachmentExt(name).toUpperCase() || "PDF";
+      return {
+        attachment,
+        name,
+        type: ext,
+        size: attachment?.[1] || "-",
+        tone: ext === "PDF" ? "red" : "green"
+      };
+    });
+  function handleDocumentError(error) {
+    setConfirm({ title: "Dokumen belum dapat dibuka", body: error.message || "Silakan coba lagi atau hubungi operator." });
+  }
+
+  async function downloadAllDocuments() {
+    for (const row of documentRows) {
+      await downloadLetterDocument(incomingDocumentSpec(detail, row.attachment), handleDocumentError);
+    }
+  }
 
   return (
     <section className="incomingPage processIncomingPage">
@@ -3577,7 +3752,12 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
                 <option>Bagian Umum</option>
                 <option>Bagian Akademik</option>
                 <option>Bagian Keuangan</option>
+                <option>Bagian Kepegawaian</option>
                 <option>Unit LPPM</option>
+                <option>SPMI</option>
+                <option>Prodi Teknik Sipil</option>
+                <option>Prodi Teknik Lingkungan</option>
+                <option>Prodi Teknik Informatika</option>
               </select>
             </label>
             <div className="processFormTwo">
@@ -3595,7 +3775,6 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
               </label>
             </div>
             <div className="processActions">
-              <button type="button" className="processDraftBtn" onClick={() => setConfirm({ title: "Simpan draft disposisi?", body: `Draft arahan untuk ${detail.agenda} akan tersimpan sementara.` })}>Simpan Draft</button>
               <button type="button" className="processSubmitBtn" onClick={onCreateDisposition}><LineIcon name="send" /> Teruskan Disposisi</button>
             </div>
           </form>
@@ -3605,18 +3784,18 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
           <article className="processCard processDocumentCard">
             <div className="processCardHeader">
               <h2><LineIcon name="doc" /> Preview Dokumen</h2>
-              <button type="button"><LineIcon name="upload" /> Unduh Semua</button>
+              <button type="button" onClick={downloadAllDocuments}><LineIcon name="upload" /> Unduh Semua</button>
             </div>
             <div className="processDocumentList">
-              {documentRows.map(([name, type, size, tone]) => (
+              {documentRows.map(({ attachment, name, type, size, tone }) => (
                 <div className="processDocumentItem" key={name}>
                   <span className={`processFileBadge ${tone}`}>{type}</span>
                   <div>
                     <strong>{name}</strong>
                     <small>{type} - {size}</small>
                   </div>
-                  <button type="button" className="processViewDoc"><LineIcon name="eye" /> Lihat</button>
-                  <button type="button" className="processDownloadDoc" aria-label={`Unduh ${name}`}><LineIcon name="upload" /></button>
+                  <button type="button" className="processViewDoc" onClick={() => previewLetterDocument(incomingDocumentSpec(detail, attachment), setPreviewDocument, handleDocumentError)}><LineIcon name="eye" /> Lihat</button>
+                  <button type="button" className="processDownloadDoc" onClick={() => downloadLetterDocument(incomingDocumentSpec(detail, attachment), handleDocumentError)} aria-label={`Unduh ${name}`}><LineIcon name="upload" /></button>
                 </div>
               ))}
             </div>
@@ -3639,6 +3818,7 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
           </article>
         </div>
       </section>
+      {previewDocument && <AttachmentPreviewModal attachment={previewDocument} detail={detail} onClose={() => setPreviewDocument(null)} />}
     </section>
   );
 }
@@ -5361,6 +5541,19 @@ function ModuleView({
     );
   }
 
+  if (view === "Disposisi") {
+    return (
+      <DispositionDashboard
+        rows={sourceRows}
+        query={query}
+        setQuery={setQuery}
+        onDetail={(row) => setDispositionAction({ mode: "detail", row })}
+        onProcess={(row) => setDispositionAction({ mode: "process", row })}
+        setConfirm={setConfirm}
+      />
+    );
+  }
+
   return (
     <section className={formVisible ? "previewLayout" : "previewLayout singleColumn"}>
       {view === "Disposisi" && (
@@ -5406,6 +5599,195 @@ function ModuleView({
         />
       </article>
       {formVisible && <FormPanel view={view} errors={errors} onSubmit={onSubmit} onCancel={view === "Surat Keluar" ? () => setOpenForms((current) => ({ ...current, [view]: false })) : null} />}
+    </section>
+  );
+}
+
+function DispositionDashboard({ rows, query, setQuery, onDetail, onProcess, setConfirm }) {
+  const [statusFilter, setStatusFilter] = useState("Semua Status");
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
+  const dispositionRows = rows.map((row, index) => {
+    const detail = getDispositionDetail(row);
+    const fallbackDates = ["22 Mei 2026", "21 Mei 2026", "20 Mei 2026", "19 Mei 2026", "18 Mei 2026"];
+    const fallbackTypes = ["Surat Sertifikasi", "Unit Internal", "LPPM STT PU", "Rektor", "Mahasiswa"];
+    return {
+      row,
+      detail,
+      nomor: row[1],
+      asal: fallbackTypes[index] || detail.pengirim || "Unit Internal",
+      tujuan: row[2],
+      instruksi: row[3],
+      status: row[4],
+      tanggal: detail.deadline || fallbackDates[index] || "22 Mei 2026"
+    };
+  });
+  const statuses = ["Semua Status", ...Array.from(new Set(dispositionRows.map((item) => item.status)))];
+  const filteredRows = dispositionRows.filter((item) => {
+    const haystack = [item.nomor, item.asal, item.tujuan, item.instruksi, item.status]
+      .join(" ")
+      .toLowerCase();
+    const matchesQuery = haystack.includes(query.toLowerCase());
+    const matchesStatus = statusFilter === "Semua Status" || item.status === statusFilter;
+    return matchesQuery && matchesStatus;
+  });
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const visibleRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+  const pageItems = getPaginationItems(page, totalPages);
+  const needFollowUp = dispositionRows.filter((item) => ["Dikirim", "Ditindaklanjuti", "Diproses", "Baru"].includes(item.status)).length;
+  const completed = dispositionRows.filter((item) => ["Selesai"].includes(item.status)).length;
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, statusFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  return (
+    <section className="dispositionDashboardPage">
+      <header className="dispositionDashboardHeader">
+        <div>
+          <h1>Disposisi</h1>
+          <p>Kelola dan teruskan disposisi surat kepada bagian terkait.</p>
+        </div>
+      </header>
+
+      <section className="dispositionStatsGrid" aria-label="Ringkasan disposisi">
+        {[
+          ["Total Disposisi", String(Math.max(28, dispositionRows.length)), "Surat", "doc", "blue"],
+          ["Perlu Tindak Lanjut", String(Math.max(9, needFollowUp)), "Surat", "clock", "orange"],
+          ["Selesai", String(Math.max(16, completed)), "Surat", "check", "green"],
+          ["Hari Ini", "5", "Surat", "calendar", "purple"]
+        ].map(([label, value, meta, icon, tone]) => (
+          <article className={`dispositionStatCard ${tone}`} key={label}>
+            <span><LineIcon name={icon} /></span>
+            <div>
+              <small>{label}</small>
+              <strong>{value}</strong>
+              <p>{meta}</p>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <section className="dispositionDashboardGrid">
+        <article className="dispositionListPanel">
+          <div className="dispositionListHeader">
+            <h3>Daftar Disposisi</h3>
+          </div>
+          <div className="dispositionToolbar">
+            <label className="dispositionSearch">
+              <LineIcon name="search" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Cari nomor surat, perihal, atau asal surat..."
+              />
+            </label>
+            <label className="dispositionDateFilter">
+              <LineIcon name="calendar" />
+              <input type="date" aria-label="Tanggal disposisi" />
+            </label>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter status">
+              {statuses.map((status) => <option key={status}>{status}</option>)}
+            </select>
+            <button
+              type="button"
+              className="primaryBtn dispositionCreateBtn"
+              onClick={() => setConfirm({ title: "Buat disposisi?", body: "Gunakan menu Review Surat Masuk untuk membuat disposisi dari surat yang diteruskan operator." })}
+            >
+              <LineIcon name="plus" /> Buat Disposisi
+            </button>
+          </div>
+
+          <div className="dispositionTableWrap">
+            <table className="dispositionDashboardTable">
+              <thead>
+                <tr>
+                  {["Nomor Surat", "Asal Surat", "Tujuan Disposisi", "Perihal", "Tanggal", "Status", "Aksi"].map((head) => <th key={head}>{head}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.map((item) => (
+                  <tr key={item.row[0]}>
+                    <td>{item.nomor}</td>
+                    <td>{item.asal}</td>
+                    <td>{item.tujuan}</td>
+                    <td>{item.instruksi}</td>
+                    <td>{item.tanggal}</td>
+                    <td><Status text={item.status} /></td>
+                    <td>
+                      <button
+                        type="button"
+                        className="dispositionActionBtn"
+                        onClick={() => item.status === "Dikirim" || item.status === "Ditindaklanjuti" ? onProcess(item.row) : onDetail(item.row)}
+                      >
+                        <LineIcon name={item.status === "Dikirim" || item.status === "Ditindaklanjuti" ? "send" : "eye"} />
+                        {item.status === "Dikirim" || item.status === "Ditindaklanjuti" ? "Proses" : "Detail"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {visibleRows.length === 0 && <div className="dispositionEmptyState">Tidak ada disposisi yang cocok dengan filter.</div>}
+          </div>
+
+          <div className="dispositionTableFooter">
+            <span>Menampilkan {visibleRows.length ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, filteredRows.length)} dari {filteredRows.length} data</span>
+            <div>
+              <button type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>&lt;</button>
+              {pageItems.map((item, index) => (
+                item === "ellipsis"
+                  ? <span key={`ellipsis-${index}`}>...</span>
+                  : <button type="button" className={item === page ? "active" : ""} key={item} onClick={() => setPage(item)}>{item}</button>
+              ))}
+              <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>&gt;</button>
+            </div>
+          </div>
+        </article>
+
+        <aside className="dispositionSidePanel">
+          <article className="dispositionGuideCard">
+            <h3><LineIcon name="book" /> Panduan Disposisi</h3>
+            <p>Gunakan disposisi untuk meneruskan surat kepada unit atau bagian terkait.</p>
+            <div>
+              {[
+                ["Buat Disposisi", "Buat disposisi baru dari surat masuk."],
+                ["Tentukan Tujuan", "Pilih unit atau bagian yang akan menindaklanjuti."],
+                ["Berikan Arahan", "Tambahkan catatan atau instruksi yang diperlukan."],
+                ["Pantau Status", "Lihat progres tindak lanjut hingga disposisi selesai."]
+              ].map(([title, body]) => (
+                <section key={title}>
+                  <i />
+                  <strong>{title}</strong>
+                  <small>{body}</small>
+                </section>
+              ))}
+            </div>
+          </article>
+
+          <article className="dispositionActivityCard">
+            <h3><LineIcon name="refresh" /> Ringkasan Aktivitas</h3>
+            {[
+              ["Disposisi diteruskan ke Unit Penelitian", "AJ-2026-012", "20 Mei 2026 10:15", "green"],
+              ["Disposisi baru dibuat", "SK-2026-018", "21 Mei 2026 09:22", "orange"],
+              ["Disposisi selesai ditindaklanjuti", "SP-2026-014", "18 Mei 2026 14:45", "purple"]
+            ].map(([title, code, time, tone]) => (
+              <div className={`dispositionActivityItem ${tone}`} key={`${title}-${code}`}>
+                <span><LineIcon name={tone === "green" ? "check" : tone === "orange" ? "clock" : "doc"} /></span>
+                <div>
+                  <strong>{title}</strong>
+                  <small>{code}</small>
+                </div>
+                <time>{time}</time>
+              </div>
+            ))}
+          </article>
+        </aside>
+      </section>
     </section>
   );
 }

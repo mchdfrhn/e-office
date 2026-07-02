@@ -6371,7 +6371,7 @@ td {
 
 .processIncomingGrid {
   display: grid;
-  grid-template-columns: minmax(320px, 0.88fr) minmax(420px, 1.12fr);
+  grid-template-columns: minmax(390px, 1.06fr) minmax(360px, 0.94fr);
   gap: 14px;
   align-items: start;
 }
@@ -6414,21 +6414,26 @@ td {
   padding: 16px;
 }
 
+.processInfoCard,
+.processDispositionForm {
+  padding: 20px;
+}
+
 .processInfoCard dl {
   display: grid;
   gap: 0;
-  margin: 12px 0 0;
+  margin: 16px 0 0;
 }
 
 .processInfoCard dl div {
   display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 12px;
-  min-height: 26px;
+  grid-template-columns: 148px 1fr;
+  gap: 16px;
+  min-height: 34px;
   align-items: center;
   border-bottom: 1px solid #eef4ff;
   color: #17205f;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .processInfoCard dl div:last-child {
@@ -6442,7 +6447,7 @@ td {
 
 .processInfoCard dd {
   margin: 0;
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .processInfoCard dt::after {
@@ -6458,13 +6463,13 @@ td {
 
 .processDispositionForm {
   display: grid;
-  gap: 12px;
+  gap: 15px;
 }
 
 .processDispositionForm label {
-  gap: 7px;
+  gap: 9px;
   color: #17205f;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -6475,17 +6480,17 @@ td {
 .processDispositionForm textarea,
 .processDispositionForm select,
 .processDispositionForm input {
-  min-height: 38px;
+  min-height: 44px;
   border: 1px solid #d8e7ff;
   border-radius: 6px;
-  padding: 10px 11px;
+  padding: 12px 13px;
   color: #17205f;
   background: #ffffff;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .processDispositionForm textarea {
-  min-height: 92px;
+  min-height: 112px;
   resize: vertical;
 }
 
@@ -6517,14 +6522,14 @@ td {
 
 .processDraftBtn,
 .processSubmitBtn {
-  min-height: 34px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   border-radius: 6px;
   padding: 0 18px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -6783,9 +6788,11 @@ td {
 }
 
 .processFlowCard {
+  width: min(100%, 520px);
+  justify-self: end;
   display: grid;
-  gap: 14px;
-  min-height: 360px;
+  gap: 12px;
+  min-height: 320px;
   align-content: start;
 }
 
@@ -6799,7 +6806,7 @@ td {
   display: grid;
   grid-template-columns: 24px 1fr auto;
   gap: 10px;
-  min-height: 70px;
+  min-height: 62px;
   align-items: start;
 }
 
@@ -7380,6 +7387,372 @@ td {
   font-weight: 900;
 }
 
+.dispositionDashboardPage {
+  display: grid;
+  gap: 18px;
+}
+
+.dispositionDashboardHeader h1 {
+  margin: 0;
+  color: #17205f;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.dispositionDashboardHeader p {
+  margin: 5px 0 0;
+  color: #5A5F99;
+  font-size: 13px;
+}
+
+.dispositionStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dispositionStatCard {
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #cfe0ff;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(31, 71, 136, 0.05);
+}
+
+.dispositionStatCard > span {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+}
+
+.dispositionStatCard.blue > span { background: #0C61F1; }
+.dispositionStatCard.orange > span { background: #f59e0b; }
+.dispositionStatCard.green > span { background: #16b878; }
+.dispositionStatCard.purple > span { background: #7c4dff; }
+
+.dispositionStatCard svg {
+  width: 23px;
+  height: 23px;
+}
+
+.dispositionStatCard small,
+.dispositionStatCard p {
+  color: #5A5F99;
+  font-size: 12px;
+}
+
+.dispositionStatCard strong {
+  display: block;
+  margin-top: 3px;
+  color: #17205f;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.dispositionStatCard p {
+  margin: 3px 0 0;
+}
+
+.dispositionDashboardGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  align-items: start;
+}
+
+.dispositionListPanel,
+.dispositionGuideCard,
+.dispositionActivityCard {
+  border: 1px solid #cfe0ff;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(31, 71, 136, 0.05);
+}
+
+.dispositionListPanel,
+.dispositionGuideCard,
+.dispositionActivityCard {
+  padding: 16px;
+}
+
+.dispositionListHeader h3,
+.dispositionGuideCard h3,
+.dispositionActivityCard h3 {
+  margin: 0;
+  color: #17205f;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.dispositionToolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 140px 150px auto;
+  gap: 10px;
+  margin: 14px 0;
+  align-items: center;
+}
+
+.dispositionSearch,
+.dispositionDateFilter {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d8e7ff;
+  border-radius: 6px;
+  padding: 0 12px;
+  color: #5A5F99;
+  background: #ffffff;
+}
+
+.dispositionSearch input,
+.dispositionDateFilter input,
+.dispositionToolbar select {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #17205f;
+  background: transparent;
+  font-size: 12px;
+}
+
+.dispositionToolbar select {
+  min-height: 38px;
+  border: 1px solid #d8e7ff;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: #ffffff;
+}
+
+.dispositionSearch svg,
+.dispositionDateFilter svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.dispositionCreateBtn {
+  min-height: 38px;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.dispositionCreateBtn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.dispositionTableWrap {
+  overflow-x: auto;
+}
+
+.dispositionDashboardTable {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+
+.dispositionDashboardTable th,
+.dispositionDashboardTable td {
+  padding: 13px 10px;
+  border-bottom: 1px solid #edf3ff;
+  color: #17205f;
+  font-size: 12px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.dispositionDashboardTable th {
+  color: #5A5F99;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  background: #f7faff;
+}
+
+.dispositionDashboardTable td:nth-child(4) {
+  max-width: 220px;
+}
+
+.dispositionActionBtn {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #bcd2ff;
+  border-radius: 6px;
+  padding: 0 12px;
+  color: #0C61F1;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.dispositionActionBtn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.dispositionEmptyState {
+  padding: 22px;
+  color: #5A5F99;
+  text-align: center;
+  font-size: 13px;
+}
+
+.dispositionTableFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  color: #5A5F99;
+  font-size: 12px;
+}
+
+.dispositionTableFooter > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dispositionTableFooter button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #d8e7ff;
+  border-radius: 6px;
+  color: #17205f;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dispositionTableFooter button.active {
+  color: #ffffff;
+  border-color: #0C61F1;
+  background: #0C61F1;
+}
+
+.dispositionTableFooter button:disabled {
+  opacity: 0.45;
+}
+
+.dispositionSidePanel {
+  display: grid;
+  gap: 16px;
+}
+
+.dispositionGuideCard h3,
+.dispositionActivityCard h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dispositionGuideCard h3 svg,
+.dispositionActivityCard h3 svg {
+  width: 16px;
+  height: 16px;
+  color: #0C61F1;
+}
+
+.dispositionGuideCard p {
+  margin: 8px 0 14px;
+  color: #5A5F99;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.dispositionGuideCard section {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  padding: 0 0 14px 22px;
+}
+
+.dispositionGuideCard section:last-child {
+  padding-bottom: 0;
+}
+
+.dispositionGuideCard section i {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #0C61F1;
+}
+
+.dispositionGuideCard section strong {
+  color: #17205f;
+  font-size: 12px;
+}
+
+.dispositionGuideCard section small {
+  color: #5A5F99;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.dispositionActivityCard {
+  display: grid;
+  gap: 12px;
+}
+
+.dispositionActivityItem {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.dispositionActivityItem > span {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+}
+
+.dispositionActivityItem.green > span { background: #16b878; }
+.dispositionActivityItem.orange > span { background: #f59e0b; }
+.dispositionActivityItem.purple > span { background: #7c4dff; }
+
+.dispositionActivityItem svg {
+  width: 15px;
+  height: 15px;
+}
+
+.dispositionActivityItem strong {
+  display: block;
+  overflow: hidden;
+  color: #17205f;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dispositionActivityItem small,
+.dispositionActivityItem time {
+  color: #5A5F99;
+  font-size: 10px;
+}
+
+.dispositionActivityItem time {
+  white-space: nowrap;
+}
+
 .archiveFolderPanel {
   margin: 14px 0 16px;
 }
@@ -7389,6 +7762,12 @@ td {
 }
 
 @media (max-width: 900px) {
+  .dispositionStatsGrid,
+  .dispositionDashboardGrid,
+  .dispositionToolbar {
+    grid-template-columns: 1fr;
+  }
+
   .archiveFolderGrid,
   .dispositionFolderGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7396,6 +7775,20 @@ td {
 }
 
 @media (max-width: 560px) {
+  .dispositionStatsGrid {
+    gap: 10px;
+  }
+
+  .dispositionStatCard {
+    min-height: 84px;
+    padding: 14px;
+  }
+
+  .dispositionTableFooter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .dispositionFolderHeader {
     align-items: flex-start;
     flex-direction: column;
