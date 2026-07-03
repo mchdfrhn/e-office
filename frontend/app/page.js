@@ -8,6 +8,7 @@ const DUMMY_USER_KEY = "eoffice_dummy_user";
 const LOCAL_AJUAN_KEY = "eoffice_local_ajuan_requests";
 const LOCAL_INCOMING_KEY = "eoffice_local_incoming_letters";
 const LOCAL_OUTGOING_KEY = "eoffice_local_outgoing_letters";
+const LOCAL_DISPOSITIONS_KEY = "eoffice_local_dispositions";
 const LOCAL_USERS_KEY = "eoffice_local_users";
 const ATTACHMENT_DB_NAME = "eoffice_attachment_store";
 const ATTACHMENT_DB_VERSION = 1;
@@ -3352,6 +3353,7 @@ function purgeRemovedIncomingLettersFromLocalStorage() {
 }
 
 function mapIncomingLetterToPimpinanRow(item) {
+  const id = item.id || item.incoming_letter_id || "";
   const agenda = item.agenda_number || item.agendaNumber || item.agenda || "-";
   const letterNumber = item.letter_number || item.letterNumber || "-";
   const sender = item.sender || "Pengirim eksternal";
@@ -3372,6 +3374,7 @@ function mapIncomingLetterToPimpinanRow(item) {
       ]]
     : [["Dokumen_Surat_Masuk.pdf", "512 KB", "Diunggah operator", "", "application/pdf"]];
   row.detail = {
+    id,
     agenda,
     nomorSurat: letterNumber,
     pengirim: sender,
@@ -3390,6 +3393,68 @@ function mapIncomingLetterToPimpinanRow(item) {
   };
   return row;
 }
+
+function dispositionStatusLabel(status) {
+  const value = String(status || "").toLowerCase();
+  if (value === "diterima") return "Diterima";
+  if (value === "ditindaklanjuti") return "Ditindaklanjuti";
+  if (value === "selesai") return "Selesai";
+  return "Dikirim";
+}
+
+function dispositionPriorityLabel(priority) {
+  const value = String(priority || "").toLowerCase();
+  if (value === "segera" || value === "tinggi") return "Tinggi";
+  if (value === "penting") return "Penting";
+  return "Normal";
+}
+
+function generateDispositionNumber() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Jakarta"
+  }).formatToParts(new Date());
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `DSP/${byType.year}/${byType.month}/${String(Date.now()).slice(-5)}`;
+}
+
+function mapDispositionToUserRow(item) {
+  const row = [
+    item.disposition_number || item.nomor || generateDispositionNumber(),
+    item.instruction || item.instruksi || item.subject || "Instruksi disposisi",
+    item.giver_name || item.pemberi || "Pimpinan",
+    dispositionPriorityLabel(item.priority || item.prioritas),
+    formatDateOnly(item.due_date || item.dueDate),
+    dispositionStatusLabel(item.status)
+  ];
+  row.detail = {
+    backendId: item.id || item.backendId || "",
+    agenda: item.agenda_number || item.agenda || "",
+    nomorSurat: item.letter_number || item.nomorSurat || "",
+    pengirim: item.sender || item.pengirim || "",
+    perihal: item.subject || item.perihal || row[1],
+    targetName: item.target_user_name || item.targetName || "User",
+    sentAt: item.sent_at || item.createdAt || new Date().toISOString()
+  };
+  return row;
+}
+
+function readLocalDispositions() {
+  return readLocalJson(LOCAL_DISPOSITIONS_KEY, []);
+}
+
+function writeLocalDispositions(dispositions) {
+  writeLocalJson(LOCAL_DISPOSITIONS_KEY, dispositions);
+}
+
+const defaultUserDispositionRows = [
+  ["DSP/2025/05/00021", "Evaluasi dokumen permohonan data", "Dewi Pimpinan", "Tinggi", "20 Mei 2025", "Dikirim"],
+  ["DSP/2025/05/00020", "Siapkan laporan tindak lanjut rapat koordinasi", "Dewi Pimpinan", "Normal", "22 Mei 2025", "Diterima"],
+  ["DSP/2025/05/00019", "Lengkapi bahan pendukung surat tugas", "Dewi Pimpinan", "Tinggi", "18 Mei 2025", "Ditindaklanjuti"],
+  ["DSP/2025/05/00018", "Arsipkan dokumen undangan kegiatan", "Dewi Pimpinan", "Rendah", "Selesai", "Selesai"]
+];
 
 function mapIncomingLetterToOperatorRow(item) {
   const agenda = item.agenda_number || item.agendaNumber || item.agenda || "-";
@@ -3474,6 +3539,53 @@ function PimpinanIncomingReview({ setConfirm }) {
   const [incomingRows, setIncomingRows] = useState(demoIncomingRows);
   const [incomingLoading, setIncomingLoading] = useState(false);
 
+  async function saveDispositionFromProcess(detail, form) {
+    const dispositionNumber = generateDispositionNumber();
+    const localDisposition = {
+      id: `local-${Date.now()}`,
+      disposition_number: dispositionNumber,
+      incomingLetterId: detail.id || "",
+      agenda_number: detail.agenda,
+      letter_number: detail.nomorSurat,
+      sender: detail.pengirim,
+      subject: detail.perihal,
+      instruction: form.instruction,
+      targetName: form.targetName,
+      priority: form.priority,
+      due_date: form.dueDate,
+      status: "dikirim",
+      giver_name: "Dewi Pimpinan",
+      createdAt: new Date().toISOString()
+    };
+
+    if (getStoredToken() && !isDummyToken() && detail.id) {
+      const payload = await apiFetch("/dispositions", {
+        method: "POST",
+        body: JSON.stringify({
+          incomingLetterId: detail.id,
+          agendaNumber: detail.agenda,
+          dispositionNumber,
+          instruction: form.instruction,
+          targetName: form.targetName,
+          dueDate: form.dueDate,
+          priority: form.priority
+        })
+      });
+      const saved = payload.data || localDisposition;
+      writeLocalDispositions([
+        { ...localDisposition, backendId: saved.id, disposition_number: saved.disposition_number || dispositionNumber },
+        ...readLocalDispositions().filter((item) => item.disposition_number !== dispositionNumber)
+      ]);
+      return saved;
+    }
+
+    writeLocalDispositions([
+      localDisposition,
+      ...readLocalDispositions().filter((item) => item.disposition_number !== dispositionNumber)
+    ]);
+    return localDisposition;
+  }
+
   useEffect(() => {
     let active = true;
 
@@ -3537,9 +3649,26 @@ function PimpinanIncomingReview({ setConfirm }) {
       <PimpinanIncomingProcess
         detail={detail}
         onBack={() => setIncomingAction(null)}
-        onCreateDisposition={() => {
-          setIncomingAction(null);
-          setDispositionSource(detail);
+        onCreateDisposition={(form) => {
+          setConfirm({
+            title: "Teruskan disposisi?",
+            body: `Disposisi untuk ${detail.agenda} akan dikirim ke ${form.targetName}, muncul di portal user, dan dicatat pada audit trail.`,
+            onConfirm: async () => {
+              try {
+                const saved = await saveDispositionFromProcess(detail, form);
+                setIncomingRows((current) => current.map((row) => {
+                  if (row[0] !== detail.agenda) return row;
+                  const nextRow = [...row.slice(0, 4), "Didisposisikan"];
+                  nextRow.detail = row.detail ? { ...row.detail, status: "Didisposisikan" } : undefined;
+                  return nextRow;
+                }));
+                setIncomingAction(null);
+                setConfirm({ title: "Disposisi terkirim", body: `${saved.disposition_number || saved.dispositionNumber || "Disposisi"} sudah masuk ke portal user pada menu Disposisi Masuk.` });
+              } catch (error) {
+                setConfirm({ title: "Gagal meneruskan disposisi", body: error.message || "Disposisi belum dapat dikirim." });
+              }
+            }
+          });
         }}
         setConfirm={setConfirm}
       />
@@ -3665,6 +3794,10 @@ function PimpinanIncomingDetail({ detail, onBack }) {
 
 function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfirm }) {
   const [previewDocument, setPreviewDocument] = useState(null);
+  const [instruction, setInstruction] = useState("");
+  const [targetName, setTargetName] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [priority, setPriority] = useState("biasa");
   const infoRows = [
     ["Nomor Agenda", detail.agenda],
     ["Tanggal Terima", detail.tanggalTerima],
@@ -3701,6 +3834,20 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
     for (const row of documentRows) {
       await downloadLetterDocument(incomingDocumentSpec(detail, row.attachment), handleDocumentError);
     }
+  }
+
+  function submitDisposition() {
+    const trimmedInstruction = instruction.trim();
+    if (!trimmedInstruction || !targetName) {
+      setConfirm({ title: "Data disposisi belum lengkap", body: "Instruksi dan tujuan disposisi wajib diisi sebelum diteruskan ke user." });
+      return;
+    }
+    onCreateDisposition({
+      instruction: trimmedInstruction,
+      targetName,
+      dueDate,
+      priority
+    });
   }
 
   return (
@@ -3742,40 +3889,41 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
             <h2><LineIcon name="edit" /> Form Disposisi</h2>
             <label className="processWideField">
               <span>Instruksi / Arahan <b>*</b></span>
-              <textarea rows={4} maxLength={500} placeholder="Tulis arahan atau instruksi tindak lanjut untuk unit terkait..." />
-              <small>0 / 500</small>
+              <textarea rows={4} maxLength={500} value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="Tulis arahan atau instruksi tindak lanjut untuk unit terkait..." />
+              <small>{instruction.length} / 500</small>
             </label>
             <label className="processWideField">
               <span>Tindak Lanjut Kepada <b>*</b></span>
-              <select defaultValue="">
+              <select value={targetName} onChange={(event) => setTargetName(event.target.value)}>
                 <option value="" disabled>Pilih unit atau pihak yang dituju...</option>
-                <option>Bagian Umum</option>
-                <option>Bagian Akademik</option>
-                <option>Bagian Keuangan</option>
-                <option>Bagian Kepegawaian</option>
-                <option>Unit LPPM</option>
-                <option>SPMI</option>
-                <option>Prodi Teknik Sipil</option>
-                <option>Prodi Teknik Lingkungan</option>
-                <option>Prodi Teknik Informatika</option>
+                <option value="Budi Santoso">Budi Santoso - User Demo</option>
+                <option value="Bagian Umum">Bagian Umum</option>
+                <option value="Bagian Akademik">Bagian Akademik</option>
+                <option value="Bagian Keuangan">Bagian Keuangan</option>
+                <option value="Bagian Kepegawaian">Bagian Kepegawaian</option>
+                <option value="Unit LPPM">Unit LPPM</option>
+                <option value="SPMI">SPMI</option>
+                <option value="Prodi Teknik Sipil">Prodi Teknik Sipil</option>
+                <option value="Prodi Teknik Lingkungan">Prodi Teknik Lingkungan</option>
+                <option value="Prodi Teknik Informatika">Prodi Teknik Informatika</option>
               </select>
             </label>
             <div className="processFormTwo">
               <label>
                 <span>Batas Waktu</span>
-                <input type="date" />
+                <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
               </label>
               <label>
                 <span>Prioritas</span>
-                <select defaultValue="normal">
-                  <option value="normal">Normal</option>
+                <select value={priority} onChange={(event) => setPriority(event.target.value)}>
+                  <option value="biasa">Normal</option>
                   <option value="penting">Penting</option>
                   <option value="segera">Segera</option>
                 </select>
               </label>
             </div>
             <div className="processActions">
-              <button type="button" className="processSubmitBtn" onClick={onCreateDisposition}><LineIcon name="send" /> Teruskan Disposisi</button>
+              <button type="button" className="processSubmitBtn" onClick={submitDisposition}><LineIcon name="send" /> Teruskan Disposisi</button>
             </div>
           </form>
         </div>
@@ -4875,12 +5023,41 @@ function DisposisiMasukHome({ setConfirm }) {
   const [followupDraft, setFollowupDraft] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
-  const [dispositionItems, setDispositionItems] = useState([
-    ["DSP/2025/05/00021", "Evaluasi dokumen permohonan data", "Dewi Pimpinan", "Tinggi", "20 Mei 2025", "Dikirim"],
-    ["DSP/2025/05/00020", "Siapkan laporan tindak lanjut rapat koordinasi", "Dewi Pimpinan", "Normal", "22 Mei 2025", "Diterima"],
-    ["DSP/2025/05/00019", "Lengkapi bahan pendukung surat tugas", "Dewi Pimpinan", "Tinggi", "18 Mei 2025", "Ditindaklanjuti"],
-    ["DSP/2025/05/00018", "Arsipkan dokumen undangan kegiatan", "Dewi Pimpinan", "Rendah", "Selesai", "Selesai"]
-  ]);
+  const [dispositionItems, setDispositionItems] = useState(defaultUserDispositionRows);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDispositions() {
+      try {
+        const localRows = readLocalDispositions().map(mapDispositionToUserRow);
+        if (getStoredToken() && !isDummyToken()) {
+          const payload = await apiFetch("/dispositions?perPage=50");
+          if (!active) return;
+          const apiRows = (payload.data || []).map(mapDispositionToUserRow);
+          const byNumber = new Map();
+          [...apiRows, ...localRows, ...defaultUserDispositionRows].forEach((row) => {
+            if (!byNumber.has(row[0])) byNumber.set(row[0], row);
+          });
+          setDispositionItems([...byNumber.values()]);
+          return;
+        }
+
+        const byNumber = new Map();
+        [...localRows, ...defaultUserDispositionRows].forEach((row) => {
+          if (!byNumber.has(row[0])) byNumber.set(row[0], row);
+        });
+        if (active) setDispositionItems([...byNumber.values()]);
+      } catch (error) {
+        if (active) setConfirm({ title: "Gagal memuat disposisi", body: error.message || "Daftar disposisi belum dapat dimuat." });
+      }
+    }
+
+    loadDispositions();
+    return () => {
+      active = false;
+    };
+  }, [setConfirm]);
   const summary = [
     ["Baru", String(dispositionItems.filter((row) => row[5] === "Dikirim").length), "Belum dibaca", "bell", "blue"],
     ["Diterima", String(dispositionItems.filter((row) => row[5] === "Diterima").length), "Sudah diterima", "mail", "purple"],
@@ -4937,11 +5114,28 @@ function DisposisiMasukHome({ setConfirm }) {
     meta: `Disposisi ${selectedDocument.id}`
   } : null;
   const markReceived = (id) => {
+    const selectedRow = dispositionItems.find((row) => row[0] === id);
     setConfirm({
       title: "Tandai disposisi diterima?",
       body: `${id} akan ditandai sebagai diterima dan dicatat pada audit trail.`,
-      onConfirm: () => {
-        setDispositionItems((current) => current.map((row) => row[0] === id ? [...row.slice(0, 5), "Diterima"] : row));
+      onConfirm: async () => {
+        try {
+          if (getStoredToken() && !isDummyToken() && selectedRow?.detail?.backendId) {
+            await apiFetch(`/dispositions/${selectedRow.detail.backendId}/receive`, { method: "POST" });
+          }
+        } catch (error) {
+          setConfirm({ title: "Gagal menandai diterima", body: error.message || "Status disposisi belum dapat diperbarui." });
+          return;
+        }
+        setDispositionItems((current) => current.map((row) => {
+          if (row[0] !== id) return row;
+          const nextRow = [...row.slice(0, 5), "Diterima"];
+          nextRow.detail = row.detail;
+          return nextRow;
+        }));
+        writeLocalDispositions(readLocalDispositions().map((item) => (
+          (item.disposition_number || item.nomor) === id ? { ...item, status: "diterima" } : item
+        )));
         setFollowupDraft((current) => current?.id === id ? { ...current, status: "Diterima" } : current);
       }
     });
