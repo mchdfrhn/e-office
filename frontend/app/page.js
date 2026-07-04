@@ -3441,6 +3441,30 @@ function mapDispositionToUserRow(item) {
   return row;
 }
 
+function mapDispositionToPimpinanRow(item) {
+  const row = [
+    item.disposition_number || item.nomor || generateDispositionNumber(),
+    item.letter_number || item.nomorSurat || item.agenda_number || item.agenda || "-",
+    item.target_user_name || item.targetName || item.tujuan || "User",
+    item.subject || item.perihal || item.instruction || item.instruksi || "Instruksi disposisi",
+    dispositionStatusLabel(item.status)
+  ];
+  row.detail = {
+    backendId: item.id || item.backendId || "",
+    agenda: item.agenda_number || item.agenda || "",
+    nomorSurat: item.letter_number || item.nomorSurat || row[1],
+    pengirim: item.sender || item.pengirim || "-",
+    perihal: item.subject || item.perihal || row[3],
+    prioritas: dispositionPriorityLabel(item.priority || item.prioritas),
+    deadline: formatDateOnly(item.due_date || item.dueDate),
+    catatan: item.instruction || item.instruksi || row[3],
+    instruksi: item.instruction || item.instruksi || row[3],
+    penerima: [row[2]],
+    riwayat: [[formatDateTime(item.sent_at || item.createdAt || new Date().toISOString()), "Pimpinan membuat disposisi"]]
+  };
+  return row;
+}
+
 function readLocalDispositions() {
   return readLocalJson(LOCAL_DISPOSITIONS_KEY, []);
 }
@@ -5018,8 +5042,9 @@ function ClipboardIllustration() {
 }
 
 function DisposisiMasukHome({ setConfirm }) {
-  const [statusFilter, setStatusFilter] = useState(null);
-  const [folderFilter, setFolderFilter] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("Semua Status");
+  const [dispositionQuery, setDispositionQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [followupDraft, setFollowupDraft] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
@@ -5058,29 +5083,42 @@ function DisposisiMasukHome({ setConfirm }) {
       active = false;
     };
   }, [setConfirm]);
-  const summary = [
-    ["Baru", String(dispositionItems.filter((row) => row[5] === "Dikirim").length), "Belum dibaca", "bell", "blue"],
-    ["Diterima", String(dispositionItems.filter((row) => row[5] === "Diterima").length), "Sudah diterima", "mail", "purple"],
-    ["Ditindaklanjuti", String(dispositionItems.filter((row) => row[5] === "Ditindaklanjuti").length), "Dalam pengerjaan", "clock", "orange"],
-    ["Selesai", String(dispositionItems.filter((row) => row[5] === "Selesai").length), "Tindak lanjut selesai", "check", "green"]
+  const pageSize = 3;
+  const userDispositionStatuses = ["Semua Status", ...Array.from(new Set(dispositionItems.map((row) => row[5])))];
+  const summaryStats = [
+    ["Menunggu Tindak Lanjut", String(dispositionItems.filter((row) => row[5] === "Dikirim").length), "Disposisi perlu ditindaklanjuti", "clock", "orange", "Dikirim"],
+    ["Diproses", String(dispositionItems.filter((row) => ["Diterima", "Ditindaklanjuti"].includes(row[5])).length), "Sedang dalam proses", "doc", "blue", "Ditindaklanjuti"],
+    ["Selesai", String(dispositionItems.filter((row) => row[5] === "Selesai").length), "Disposisi telah diselesaikan", "check", "green", "Selesai"]
   ];
-  const statusFilterMap = { Baru: "Dikirim", Diterima: "Diterima", Ditindaklanjuti: "Ditindaklanjuti", Selesai: "Selesai" };
-  const dispositionFolders = useMemo(() => {
-    const counts = dispositionItems.reduce((acc, row) => {
-      const jenis = row[1].includes("rapat") ? "Rapat Koordinasi" : row[1].includes("surat tugas") ? "Surat Tugas" : row[1].includes("undangan") ? "Surat Undangan" : "Surat Permohonan";
-      acc[jenis] = (acc[jenis] || 0) + 1;
-      return acc;
-    }, {});
-    return Object.entries(counts);
-  }, [dispositionItems]);
-  const getDispositionFolder = (row) => (
-    row[1].includes("rapat") ? "Rapat Koordinasi" : row[1].includes("surat tugas") ? "Surat Tugas" : row[1].includes("undangan") ? "Surat Undangan" : "Surat Permohonan"
-  );
   const filteredDispositions = dispositionItems.filter((row) => {
-    const matchesStatus = statusFilter ? row[5] === statusFilterMap[statusFilter] : true;
-    const matchesFolder = folderFilter ? getDispositionFolder(row) === folderFilter : true;
-    return matchesStatus && matchesFolder;
+    const haystack = row.join(" ").toLowerCase();
+    const matchesQuery = haystack.includes(dispositionQuery.toLowerCase());
+    const matchesStatus = statusFilter === "Semua Status" ? true : row[5] === statusFilter;
+    return matchesQuery && matchesStatus;
   });
+  const totalPages = Math.max(1, Math.ceil(filteredDispositions.length / pageSize));
+  const visibleDispositions = filteredDispositions.slice((page - 1) * pageSize, page * pageSize);
+  const statusLabel = (status) => {
+    if (status === "Selesai") return "Selesai";
+    if (status === "Dikirim") return "Menunggu";
+    return "Diproses";
+  };
+  const statusTone = (status) => {
+    if (status === "Selesai") return "green";
+    if (status === "Dikirim") return "orange";
+    return "blue";
+  };
+  const rowIcon = (status) => status === "Selesai" ? "check" : status === "Dikirim" ? "doc" : "clipboard";
+  const rowDate = (row) => row.detail?.sentAt ? formatDateOnly(row.detail.sentAt) : row[4];
+
+  useEffect(() => {
+    setPage(1);
+  }, [dispositionQuery, statusFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const openFollowup = (row = dispositionItems[0]) => {
     const [id, instruksi, pemberi, prioritas, deadline, status] = row;
     setSelectedDocument(null);
@@ -5088,6 +5126,10 @@ function DisposisiMasukHome({ setConfirm }) {
   };
   const openDocument = (row) => {
     const [id, instruksi, pemberi, prioritas, deadline, status] = row;
+    const detail = row.detail || {};
+    const nomorSurat = detail.nomorSurat || id.replace("DSP", "SM");
+    const perihal = detail.perihal || instruksi;
+    const pengirim = detail.pengirim || "SMKN 1 BOJONGPICUNG";
     setFollowupDraft(null);
     setSelectedDocument({
       id,
@@ -5096,10 +5138,20 @@ function DisposisiMasukHome({ setConfirm }) {
       prioritas,
       deadline,
       status,
-      nomor: id.replace("DSP", "SM"),
-      jenis: instruksi.includes("rapat") ? "Notulen Rapat" : instruksi.includes("surat tugas") ? "Surat Tugas" : instruksi.includes("undangan") ? "Surat Undangan" : "Surat Permohonan",
-      perihal: instruksi,
-      catatan: `Mohon ditindaklanjuti sesuai instruksi pimpinan. Hasil pekerjaan dikirim melalui menu Tindak Lanjut pada disposisi ${id}.`
+      agenda: detail.agenda || "AG-2026-25243",
+      nomor: nomorSurat,
+      jenis: perihal.toLowerCase().includes("rapat") ? "Notulen Rapat" : perihal.toLowerCase().includes("surat tugas") ? "Surat Tugas" : perihal.toLowerCase().includes("undangan") ? "Surat Undangan" : "Surat Permohonan",
+      tanggalSurat: detail.tanggalSurat || "28 Juni 2026",
+      tanggalTerima: detail.sentAt ? formatDateOnly(detail.sentAt) : "2 Juli 2027",
+      tanggalDisposisi: detail.sentAt ? formatDateOnly(detail.sentAt) : "3 Juli 2026, 10:30 WIB",
+      pengirim,
+      tujuan: "Untuk Budi Santoso (Bagian Kemahasiswaan)",
+      perihal,
+      catatan: detail.catatan || detail.instruksi || `Mohon ditindaklanjuti sesuai prosedur dan koordinasikan dengan pihak terkait.`,
+      lampiran: detail.lampiran || [
+        ["Surat Permohonan.pdf", "245 KB", "Lampiran surat masuk"],
+        ["Proposal Penelitian.pdf", "1.2 MB", "Lampiran pendukung"]
+      ]
     });
   };
   const selectedDocumentSpec = selectedDocument ? {
@@ -5141,96 +5193,176 @@ function DisposisiMasukHome({ setConfirm }) {
     });
   };
 
+  if (selectedDocument) {
+    const documentSpecs = selectedDocument.lampiran.map(([filename, size, meta]) => ({
+      title: selectedDocument.jenis,
+      filename,
+      number: selectedDocument.nomor,
+      kind: selectedDocument.jenis,
+      subject: selectedDocument.perihal,
+      party: selectedDocument.pengirim,
+      status: selectedDocument.status,
+      summary: selectedDocument.catatan,
+      meta: `${meta || "Dokumen disposisi"} - ${size || ""}`
+    }));
+    const primarySpec = documentSpecs[0] || selectedDocumentSpec;
+    const detailItems = [
+      ["Nomor Agenda", selectedDocument.agenda],
+      ["Tanggal Terima", selectedDocument.tanggalTerima],
+      ["Nomor Surat", selectedDocument.nomor],
+      ["Tanggal Surat", selectedDocument.tanggalSurat],
+      ["Pengirim", selectedDocument.pengirim],
+      ["Perihal", selectedDocument.perihal],
+      ["Sifat", selectedDocument.prioritas || "Biasa"],
+      ["Lampiran", `${selectedDocument.lampiran.length} berkas`]
+    ];
+
+    return (
+      <section className="userDispositionDocumentPage">
+        <button type="button" className="documentBackLink" onClick={() => setSelectedDocument(null)}><LineIcon name="arrowLeft" /> Kembali</button>
+        <header className="documentDetailHeader">
+          <div>
+            <h1>Dokumen Disposisi</h1>
+            <p>Berikut adalah detail dokumen surat dan instruksi disposisi dari pimpinan.</p>
+          </div>
+        </header>
+
+        <section className="documentDetailCard">
+          <h2><LineIcon name="doc" /> Informasi Surat</h2>
+          <div className="documentInfoGrid">
+            {detailItems.map(([label, value]) => (
+              <div key={label}>
+                <small>{label}</small>
+                <strong>{value || "-"}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="documentDetailCard dispositionInstructionCard">
+          <h2><LineIcon name="clipboard" /> Instruksi Disposisi</h2>
+          <div className="instructionInfoGrid">
+            <div><small>Dari</small><strong>{selectedDocument.pemberi}</strong></div>
+            <div><small>Untuk</small><strong>{selectedDocument.tujuan}</strong></div>
+            <div><small>Instruksi / Arahan</small><p>{selectedDocument.catatan}</p></div>
+            <div><small>Batas Waktu</small><strong>{selectedDocument.deadline}</strong></div>
+            <div><small>Tanggal Disposisi</small><strong>{selectedDocument.tanggalDisposisi}</strong></div>
+          </div>
+        </section>
+
+        <section className="documentDetailCard documentPreviewCard">
+          <div className="documentPreviewHeader">
+            <h2><LineIcon name="doc" /> Preview Dokumen</h2>
+            <button type="button" className="softBtn" onClick={() => downloadLetterDocument(primarySpec)}><LineIcon name="upload" /> Unduh Semua</button>
+          </div>
+          <div className="documentFileList">
+            {documentSpecs.map((spec, index) => (
+              <article className="documentFileItem" key={spec.filename}>
+                <span className={`pdfIcon ${index % 2 ? "green" : "red"}`}>PDF</span>
+                <div>
+                  <strong>{spec.filename}</strong>
+                  <small>PDF - {selectedDocument.lampiran[index]?.[1] || "245 KB"}</small>
+                </div>
+                <button type="button" className="softBtn" onClick={() => previewLetterDocument(spec, setPreviewDocument)}><LineIcon name="eye" /> Lihat</button>
+                <button type="button" className="iconBtn" onClick={() => downloadLetterDocument(spec)} aria-label={`Unduh ${spec.filename}`}><LineIcon name="upload" /></button>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <footer className="documentDetailFooter">
+          <button type="button" className="softBtn" onClick={() => setSelectedDocument(null)}><LineIcon name="x" /> Tutup</button>
+          <button type="button" className="primaryBtn" onClick={() => setSelectedDocument(null)}><LineIcon name="arrowLeft" /> Kembali ke Daftar</button>
+        </footer>
+        {previewDocument && <AttachmentPreviewModal attachment={previewDocument} detail={{ judul: "Dokumen Disposisi", keterangan: "Dokumen terkait disposisi." }} onClose={() => setPreviewDocument(null)} />}
+      </section>
+    );
+  }
+
   return (
-    <section className="disposisiPage">
-      <header className="ajuanHeader">
+    <section className="disposisiPage userDispositionPage">
+      <header className="userDispositionHeader">
         <div>
           <h1>Disposisi Masuk</h1>
-          <p>Terima instruksi dari pimpinan dan tindak lanjuti disposisi sesuai daftar.</p>
+          <p>Pantau instruksi pimpinan dan tindak lanjuti disposisi yang masuk.</p>
         </div>
       </header>
 
-      <section className="ajuanStatusGrid" aria-label="Ringkasan Disposisi Masuk">
-        {summary.map(([label, value, meta, icon, tone]) => (
-          <button type="button" className={`ajuanStatusCard clickable ${tone}`} key={label} onClick={() => setStatusFilter(label)} aria-label={`Filter disposisi ${label}`}>
-            <span className="icon3d">{iconSymbol(icon)}</span>
-            <div><small>{label}</small><strong>{value}</strong><p>{meta}</p></div>
+      <section className="userDispositionStats" aria-label="Ringkasan disposisi masuk">
+        {summaryStats.map(([label, value, meta, icon, tone, targetStatus]) => (
+          <button type="button" className={`userDispositionStat ${tone}`} key={label} onClick={() => setStatusFilter(targetStatus)}>
+            <span><LineIcon name={icon} /></span>
+            <div>
+              <small>{label}</small>
+              <strong>{value}</strong>
+              <p>{meta}</p>
+            </div>
           </button>
         ))}
       </section>
 
-      <section className="dispositionFolderPanel dispositionFolderPanelTop">
-        <div className="dispositionFolderHeader">
-          <h4>Folder Berdasarkan Jenis Disposisi</h4>
-          <button type="button" onClick={() => setFolderFilter(null)}>Lihat semua folder <span aria-hidden="true">-&gt;</span></button>
-        </div>
-        <div className="dispositionFolderGrid">
-          {dispositionFolders.map(([folder, count]) => (
-            <button
-              type="button"
-              className={folderFilter === folder ? "dispositionFolderItem active" : "dispositionFolderItem"}
-              key={folder}
-              onClick={() => setFolderFilter(folder)}
-            >
-              <span><LineIcon name="folder" /></span>
-              <strong>{folder}</strong>
-              <small>{count}</small>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="disposisiGrid">
+      <section className="userDispositionGrid">
         <article className="disposisiList">
-          <div className="panelHeader">
-            <h3>{statusFilter ? `Daftar Disposisi - ${statusFilter}` : "Daftar Disposisi dari Pimpinan"}</h3>
-            <button onClick={() => setStatusFilter(null)}>Semua status <span aria-hidden="true">-&gt;</span></button>
+          <div className="userDispositionListHeader">
+            <h3>Daftar Disposisi Masuk</h3>
+            <div>
+              <label className="userDispositionSearch">
+                <LineIcon name="search" />
+                <input value={dispositionQuery} onChange={(event) => setDispositionQuery(event.target.value)} placeholder="Cari disposisi, nomor atau perihal..." />
+              </label>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter status disposisi">
+                {userDispositionStatuses.map((status) => <option key={status}>{status}</option>)}
+              </select>
+            </div>
           </div>
-          <div className="disposisiCards">
-            {filteredDispositions.map((row) => {
+          <div className="userDispositionRows">
+            {visibleDispositions.map((row) => {
               const [id, instruksi, pemberi, prioritas, deadline, status] = row;
               return (
-              <div className="disposisiCard" key={id}>
-                <div className="disposisiCardTop">
-                  <Status text={status} />
-                </div>
-                <h4>{instruksi}</h4>
-                <p>{id} | Dari: {pemberi}</p>
-                <div className="disposisiMeta"><span><LineIcon name="clock" /> Batas waktu: {deadline}</span></div>
-                <div className="disposisiActions">
-                  <button type="button" className="softBtn" onClick={() => openDocument(row)}>Lihat Dokumen</button>
-                  <button type="button" className="softBtn" onClick={() => markReceived(id)} disabled={status !== "Dikirim"}>
-                    {status === "Dikirim" ? "Tandai Diterima" : "Sudah Diterima"}
-                  </button>
-                  <button type="button" className="primaryBtn" onClick={() => openFollowup(row)}>Tindak Lanjut</button>
-                </div>
+                <article className={`userDispositionRow ${statusTone(status)}`} key={id}>
+                  <div className="userDispositionRowIcon">
+                    <span>{statusLabel(status)}</span>
+                    <i><LineIcon name={rowIcon(status)} /></i>
+                  </div>
+                  <div className="userDispositionRowBody">
+                    <div className="userDispositionRowTop">
+                      <h4>{instruksi}</h4>
+                      <time>{rowDate(row)}</time>
+                    </div>
+                    <p>Nomor Disposisi <b>{id}</b></p>
+                    <div className="userDispositionRowMeta">
+                      <span>Dari: {pemberi}</span>
+                      <span>Batas waktu: <b>{deadline}</b></span>
+                    </div>
+                    <div className="userDispositionRowActions">
+                      <button type="button" className="softBtn" onClick={() => openDocument(row)}><LineIcon name="eye" /> Lihat Dokumen</button>
+                      <button type="button" className="softBtn" onClick={() => markReceived(id)} disabled={status !== "Dikirim"}>
+                        <LineIcon name="check" /> {status === "Dikirim" ? "Tandai Diterima" : "Diterima"}
+                      </button>
+                      <button type="button" className="primaryBtn" onClick={() => openFollowup(row)}>Tindak Lanjut <span aria-hidden="true">-&gt;</span></button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+            {filteredDispositions.length === 0 && (
+              <div className="disposisiEmptyCard">
+                <strong>Tidak ada disposisi</strong>
+                <span>Pilih semua status untuk melihat seluruh disposisi dari pimpinan.</span>
               </div>
-            );})}
+            )}
+          </div>
+          <div className="userDispositionFooter">
+            <span>Menampilkan {visibleDispositions.length ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, filteredDispositions.length)} dari {filteredDispositions.length} data</span>
+            <div>
+              <button type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>&lt;</button>
+              <button type="button" className="active">{page}</button>
+              <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>&gt;</button>
+            </div>
           </div>
         </article>
 
-        {selectedDocument ? (
-          <aside className="followupPanel dispositionDocumentPanel">
-            <div className="followupFormHeader">
-              <span className="mail3d"><LineIcon name="doc" /></span>
-              <button type="button" className="iconBtn" onClick={() => setSelectedDocument(null)} aria-label="Tutup dokumen"><LineIcon name="x" /></button>
-            </div>
-            <h3>Dokumen Terkait</h3>
-            <div className="documentInfoRows">
-              <span>Nomor Dokumen <b>{selectedDocument.nomor}</b></span>
-              <span>Jenis Dokumen <b>{selectedDocument.jenis}</b></span>
-              <span>Dari <b>{selectedDocument.pemberi}</b></span>
-              <span>Batas Waktu <b>{selectedDocument.deadline}</b></span>
-            </div>
-            <div className="dispositionPreviewSheet">
-              <small>{selectedDocument.id}</small>
-              <h4>{selectedDocument.perihal}</h4>
-              <p>{selectedDocument.catatan}</p>
-              <div className="docLines"><i /><i /><i /><i /></div>
-            </div>
-            <DocumentOpenButtons spec={selectedDocumentSpec} onPreview={setPreviewDocument} />
-          </aside>
-        ) : followupDraft ? (
+        {followupDraft ? (
           <aside className="followupPanel followupFormPanel">
             <div className="followupFormHeader">
               <span className="mail3d"><LineIcon name="clipboard" /></span>
@@ -5262,18 +5394,34 @@ function DisposisiMasukHome({ setConfirm }) {
             </form>
           </aside>
         ) : (
-          <aside className="followupPanel">
-            <span className="mail3d"><LineIcon name="clipboard" /></span>
-            <h3>Alur Tindak Lanjut</h3>
-            <div className="followupSteps">
+          <aside className="userDispositionSide">
+            <article className="followupPanel">
+              <h3>Alur Tindak Lanjut</h3>
+              <div className="followupSteps">
+                {[
+                  ["Terima Disposisi", "Baca instruksi dan tandai disposisi sebagai diterima."],
+                  ["Kerjakan Instruksi", "Kerjakan sesuai instruksi dan siapkan catatan atau dokumen pendukung."],
+                  ["Unggah Hasil / Kirim Tindak Lanjut", "Unggah hasil pekerjaan dan kirimkan kembali sebagai tindak lanjut."]
+                ].map(([title, body], index) => (
+                  <div key={title}><b>{index + 1}</b><span><strong>{title}</strong><small>{body}</small></span></div>
+                ))}
+              </div>
+            </article>
+            <article className="userDispositionActivity">
+              <h3>Ringkasan Aktivitas</h3>
               {[
-                ["Terima Disposisi", "Baca instruksi dan tandai diterima."],
-                ["Kerjakan Instruksi", "Siapkan catatan atau dokumen pendukung."],
-                ["Kirim Hasil", "Unggah lampiran jika ada dan kirim ke pimpinan."]
-              ].map(([title, body], index) => (
-                <div key={title}><b>{index + 1}</b><span><strong>{title}</strong><small>{body}</small></span></div>
+                ["Disposisi \"Penyusunan laporan kegiatan...\"", "Ditandai selesai", "15 Mei, 10:42", "green"],
+                ["Tindak lanjut dikirim", "DSP/2025/05/00021", "14 Mei, 16:30", "blue"],
+                ["Disposisi baru diterima", dispositionItems[0]?.[0] || "DSP/2025/05/00021", "14 Mei, 09:15", "orange"]
+              ].map(([title, body, time, tone]) => (
+                <div className={`userDispositionActivityItem ${tone}`} key={`${title}-${time}`}>
+                  <span><LineIcon name={tone === "green" ? "check" : tone === "blue" ? "doc" : "clock"} /></span>
+                  <div><strong>{title}</strong><small>{body}</small></div>
+                  <time>{time}</time>
+                </div>
               ))}
-            </div>
+              <button type="button" onClick={() => setConfirm({ title: "Lihat semua aktivitas", body: "Aktivitas lengkap disposisi tersimpan di notifikasi dan audit trail." })}>Lihat semua aktivitas <span aria-hidden="true">-&gt;</span></button>
+            </article>
           </aside>
         )}
       {previewDocument && <AttachmentPreviewModal attachment={previewDocument} detail={{ judul: "Dokumen Disposisi", keterangan: "Dokumen terkait disposisi." }} onClose={() => setPreviewDocument(null)} />}
@@ -5410,6 +5558,16 @@ function getDispositionDetail(row) {
       ]
     }
   };
+  if (row?.detail) {
+    return {
+      id,
+      nomorSurat,
+      tujuan,
+      instruksi,
+      status,
+      ...row.detail
+    };
+  }
   return {
     id,
     nomorSurat,
@@ -5612,7 +5770,18 @@ function ModuleView({
   const [outgoingAction, setOutgoingAction] = useState(null);
   const [auditAction, setAuditAction] = useState(null);
   const outgoingRows = outgoingLetters.map(outgoingLetterToRow);
-  const sourceRows = view === "Pengguna" ? userRows : view === "Audit Trail" ? (auditRows || []) : view === "Surat Keluar" ? outgoingRows : (rows[view] || rows["Ajuan Surat"]);
+  const storedDispositionRows = useMemo(() => {
+    if (view !== "Disposisi") return [];
+    const byNumber = new Map();
+    readLocalDispositions().map(mapDispositionToPimpinanRow).forEach((row) => {
+      if (!byNumber.has(row[0])) byNumber.set(row[0], row);
+    });
+    (rows.Disposisi || []).forEach((row) => {
+      if (!byNumber.has(row[0])) byNumber.set(row[0], row);
+    });
+    return [...byNumber.values()];
+  }, [view]);
+  const sourceRows = view === "Pengguna" ? userRows : view === "Audit Trail" ? (auditRows || []) : view === "Surat Keluar" ? outgoingRows : view === "Disposisi" ? storedDispositionRows : (rows[view] || rows["Ajuan Surat"]);
   const dispositionFolders = useMemo(() => {
     if (view !== "Disposisi") return [];
     const counts = sourceRows.reduce((acc, row) => {
@@ -5800,18 +5969,28 @@ function ModuleView({
 function DispositionDashboard({ rows, query, setQuery, onDetail, onProcess, setConfirm }) {
   const [statusFilter, setStatusFilter] = useState("Semua Status");
   const [page, setPage] = useState(1);
-  const pageSize = 5;
-  const dispositionRows = rows.map((row, index) => {
+  const pageSize = 7;
+  const fallbackDispositionRows = [
+    ["DSP-2025-128", "004/DSP/STT/PU/V/2025", "Bagian Akademik", "Undangan Rapat", "Baru"],
+    ["DSP-2025-127", "023/DPU/V/2025", "Bagian Umum", "Permohonan Data Sarana", "Diproses"],
+    ["DSP-2025-126", "112/BPK/V/2025", "Bagian Keuangan", "Laporan Hasil Pemeriksaan", "Diteruskan"],
+    ["DSP-2025-125", "045/LPPM/V/2025", "Unit Penelitian", "Permohonan Hibah Penelitian 2025", "Diproses"],
+    ["DSP-2025-124", "070/KMHS/V/2025", "Bagian Kemahasiswaan", "Permohonan Dukungan Kegiatan", "Selesai"],
+    ["DSP-2025-123", "091/SETJEN/V/2025", "Bagian Umum", "Informasi Pelatihan ASN", "Selesai"],
+    ["DSP-2025-122", "067/LPPM/V/2025", "Unit Penelitian", "Kerja Sama Penelitian Bidang Infrastruktur", "Diteruskan"]
+  ];
+  const sourceDispositionRows = rows.length >= pageSize ? rows : [...rows, ...fallbackDispositionRows].slice(0, pageSize);
+  const dispositionRows = sourceDispositionRows.map((row, index) => {
     const detail = getDispositionDetail(row);
-    const fallbackDates = ["22 Mei 2026", "21 Mei 2026", "20 Mei 2026", "19 Mei 2026", "18 Mei 2026"];
-    const fallbackTypes = ["Surat Sertifikasi", "Unit Internal", "LPPM STT PU", "Rektor", "Mahasiswa"];
+    const fallbackDates = ["27 Mei 2025", "26 Mei 2025", "26 Mei 2025", "25 Mei 2025", "24 Mei 2025", "24 Mei 2025", "23 Mei 2025"];
+    const fallbackTypes = ["Universitas Indonesia", "Dinas PU DKI Jakarta", "BPK RI Perwakilan DKI", "Kementerian PUPR", "BEM STT PU Jakarta", "Sekretariat Jenderal", "LPPM ITB"];
     return {
       row,
       detail,
       nomor: row[1],
-      asal: fallbackTypes[index] || detail.pengirim || "Unit Internal",
+      asal: detail.pengirim || fallbackTypes[index] || "Unit Internal",
       tujuan: row[2],
-      instruksi: row[3],
+      instruksi: detail.perihal || row[3],
       status: row[4],
       tanggal: detail.deadline || fallbackDates[index] || "22 Mei 2026"
     };
@@ -5828,8 +6007,7 @@ function DispositionDashboard({ rows, query, setQuery, onDetail, onProcess, setC
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const visibleRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
   const pageItems = getPaginationItems(page, totalPages);
-  const needFollowUp = dispositionRows.filter((item) => ["Dikirim", "Ditindaklanjuti", "Diproses", "Baru"].includes(item.status)).length;
-  const completed = dispositionRows.filter((item) => ["Selesai"].includes(item.status)).length;
+  const displayTotal = Math.max(filteredRows.length, 128);
 
   useEffect(() => {
     setPage(1);
@@ -5841,31 +6019,6 @@ function DispositionDashboard({ rows, query, setQuery, onDetail, onProcess, setC
 
   return (
     <section className="dispositionDashboardPage">
-      <header className="dispositionDashboardHeader">
-        <div>
-          <h1>Disposisi</h1>
-          <p>Kelola dan teruskan disposisi surat kepada bagian terkait.</p>
-        </div>
-      </header>
-
-      <section className="dispositionStatsGrid" aria-label="Ringkasan disposisi">
-        {[
-          ["Total Disposisi", String(Math.max(28, dispositionRows.length)), "Surat", "doc", "blue"],
-          ["Perlu Tindak Lanjut", String(Math.max(9, needFollowUp)), "Surat", "clock", "orange"],
-          ["Selesai", String(Math.max(16, completed)), "Surat", "check", "green"],
-          ["Hari Ini", "5", "Surat", "calendar", "purple"]
-        ].map(([label, value, meta, icon, tone]) => (
-          <article className={`dispositionStatCard ${tone}`} key={label}>
-            <span><LineIcon name={icon} /></span>
-            <div>
-              <small>{label}</small>
-              <strong>{value}</strong>
-              <p>{meta}</p>
-            </div>
-          </article>
-        ))}
-      </section>
-
       <section className="dispositionDashboardGrid">
         <article className="dispositionListPanel">
           <div className="dispositionListHeader">
@@ -5880,20 +6033,9 @@ function DispositionDashboard({ rows, query, setQuery, onDetail, onProcess, setC
                 placeholder="Cari nomor surat, perihal, atau asal surat..."
               />
             </label>
-            <label className="dispositionDateFilter">
-              <LineIcon name="calendar" />
-              <input type="date" aria-label="Tanggal disposisi" />
-            </label>
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter status">
               {statuses.map((status) => <option key={status}>{status}</option>)}
             </select>
-            <button
-              type="button"
-              className="primaryBtn dispositionCreateBtn"
-              onClick={() => setConfirm({ title: "Buat disposisi?", body: "Gunakan menu Review Surat Masuk untuk membuat disposisi dari surat yang diteruskan operator." })}
-            >
-              <LineIcon name="plus" /> Buat Disposisi
-            </button>
           </div>
 
           <div className="dispositionTableWrap">
@@ -5930,7 +6072,7 @@ function DispositionDashboard({ rows, query, setQuery, onDetail, onProcess, setC
           </div>
 
           <div className="dispositionTableFooter">
-            <span>Menampilkan {visibleRows.length ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, filteredRows.length)} dari {filteredRows.length} data</span>
+            <span>Menampilkan {visibleRows.length ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, filteredRows.length)} dari {displayTotal} data</span>
             <div>
               <button type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>&lt;</button>
               {pageItems.map((item, index) => (
@@ -5946,16 +6088,15 @@ function DispositionDashboard({ rows, query, setQuery, onDetail, onProcess, setC
         <aside className="dispositionSidePanel">
           <article className="dispositionGuideCard">
             <h3><LineIcon name="book" /> Panduan Disposisi</h3>
-            <p>Gunakan disposisi untuk meneruskan surat kepada unit atau bagian terkait.</p>
             <div>
               {[
-                ["Buat Disposisi", "Buat disposisi baru dari surat masuk."],
-                ["Tentukan Tujuan", "Pilih unit atau bagian yang akan menindaklanjuti."],
-                ["Berikan Arahan", "Tambahkan catatan atau instruksi yang diperlukan."],
-                ["Pantau Status", "Lihat progres tindak lanjut hingga disposisi selesai."]
-              ].map(([title, body]) => (
+                ["Buat Disposisi", "Periksa surat masuk dan buat disposisi secara manual."],
+                ["Tentukan Tujuan", "Pilih bagian atau unit yang tepat sebagai tujuan disposisi."],
+                ["Berikan Arahan", "Tuliskan arahan atau catatan untuk ditindaklanjuti."],
+                ["Pantau Status", "Pantau tindak lanjut hingga disposisi selesai."]
+              ].map(([title, body], index) => (
                 <section key={title}>
-                  <i />
+                  <i>{index + 1}</i>
                   <strong>{title}</strong>
                   <small>{body}</small>
                 </section>
@@ -5966,12 +6107,14 @@ function DispositionDashboard({ rows, query, setQuery, onDetail, onProcess, setC
           <article className="dispositionActivityCard">
             <h3><LineIcon name="refresh" /> Ringkasan Aktivitas</h3>
             {[
-              ["Disposisi diteruskan ke Unit Penelitian", "AJ-2026-012", "20 Mei 2026 10:15", "green"],
-              ["Disposisi baru dibuat", "SK-2026-018", "21 Mei 2026 09:22", "orange"],
-              ["Disposisi selesai ditindaklanjuti", "SP-2026-014", "18 Mei 2026 14:45", "purple"]
+              ["Disposisi diteruskan ke Unit Penelitian", "Permohonan Hibah Penelitian 2025", "10:32", "green"],
+              ["Disposisi baru dibuat", "Undangan Rapat Evaluasi Kurikulum", "09:15", "blue"],
+              ["Disposisi diteruskan ke Bagian Umum", "Permohonan Data Sarana", "Kemarin, 15:41", "orange"],
+              ["Disposisi selesai", "Informasi Pelatihan ASN", "Kemarin, 11:08", "green"],
+              ["Disposisi baru dibuat", "Laporan Hasil Pemeriksaan", "23 Mei 2025, 14:22", "blue"]
             ].map(([title, code, time, tone]) => (
               <div className={`dispositionActivityItem ${tone}`} key={`${title}-${code}`}>
-                <span><LineIcon name={tone === "green" ? "check" : tone === "orange" ? "clock" : "doc"} /></span>
+                <span><LineIcon name={tone === "green" ? "check" : tone === "orange" ? "send" : "doc"} /></span>
                 <div>
                   <strong>{title}</strong>
                   <small>{code}</small>
@@ -5979,6 +6122,13 @@ function DispositionDashboard({ rows, query, setQuery, onDetail, onProcess, setC
                 <time>{time}</time>
               </div>
             ))}
+            <button
+              type="button"
+              className="dispositionActivityLink"
+              onClick={() => setConfirm({ title: "Lihat semua aktivitas", body: "Riwayat lengkap aktivitas disposisi tersedia melalui audit trail dan notifikasi internal." })}
+            >
+              Lihat semua aktivitas <span aria-hidden="true">-&gt;</span>
+            </button>
           </article>
         </aside>
       </section>

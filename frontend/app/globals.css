@@ -7389,7 +7389,7 @@ td {
 
 .dispositionDashboardPage {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .dispositionDashboardHeader h1 {
@@ -7462,24 +7462,24 @@ td {
 
 .dispositionDashboardGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 14px;
   align-items: start;
 }
 
 .dispositionListPanel,
 .dispositionGuideCard,
 .dispositionActivityCard {
-  border: 1px solid #cfe0ff;
+  border: 1px solid #dbe7fb;
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 12px 28px rgba(31, 71, 136, 0.05);
+  box-shadow: 0 10px 26px rgba(31, 71, 136, 0.07);
 }
 
 .dispositionListPanel,
 .dispositionGuideCard,
 .dispositionActivityCard {
-  padding: 16px;
+  padding: 14px;
 }
 
 .dispositionListHeader h3,
@@ -7493,19 +7493,19 @@ td {
 
 .dispositionToolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 140px 150px auto;
+  grid-template-columns: minmax(220px, 1fr) 174px;
   gap: 10px;
-  margin: 14px 0;
+  margin: 13px 0 12px;
   align-items: center;
 }
 
 .dispositionSearch,
 .dispositionDateFilter {
-  min-height: 38px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #d8e7ff;
+  border: 1px solid #dce6f5;
   border-radius: 6px;
   padding: 0 12px;
   color: #5A5F99;
@@ -7521,15 +7521,16 @@ td {
   outline: 0;
   color: #17205f;
   background: transparent;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .dispositionToolbar select {
-  min-height: 38px;
-  border: 1px solid #d8e7ff;
+  min-height: 34px;
+  border: 1px solid #dce6f5;
   border-radius: 6px;
   padding: 0 10px;
   background: #ffffff;
+  font-weight: 700;
 }
 
 .dispositionSearch svg,
@@ -7556,16 +7557,16 @@ td {
 
 .dispositionDashboardTable {
   width: 100%;
-  min-width: 820px;
+  min-width: 760px;
   border-collapse: collapse;
 }
 
 .dispositionDashboardTable th,
 .dispositionDashboardTable td {
-  padding: 13px 10px;
+  padding: 11px 10px;
   border-bottom: 1px solid #edf3ff;
   color: #17205f;
-  font-size: 12px;
+  font-size: 11px;
   text-align: left;
   vertical-align: middle;
 }
@@ -7574,26 +7575,35 @@ td {
   color: #5A5F99;
   font-size: 11px;
   font-weight: 900;
-  text-transform: uppercase;
-  background: #f7faff;
+  background: #f6f9fe;
 }
 
 .dispositionDashboardTable td:nth-child(4) {
-  max-width: 220px;
+  max-width: 190px;
+  line-height: 1.35;
+}
+
+.dispositionDashboardTable .status {
+  min-height: 24px;
+  border-radius: 6px;
+  padding: 0 9px;
+  font-size: 10px;
+  font-weight: 900;
 }
 
 .dispositionActionBtn {
-  min-height: 30px;
+  min-width: 58px;
+  min-height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  border: 1px solid #bcd2ff;
+  gap: 5px;
+  border: 1px solid #b7d4ff;
   border-radius: 6px;
   padding: 0 12px;
   color: #0C61F1;
-  background: #ffffff;
-  font-size: 11px;
+  background: #eef6ff;
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -7614,9 +7624,9 @@ td {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-top: 14px;
+  margin-top: 12px;
   color: #5A5F99;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .dispositionTableFooter > div {
@@ -7626,8 +7636,8 @@ td {
 }
 
 .dispositionTableFooter button {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border: 1px solid #d8e7ff;
   border-radius: 6px;
   color: #17205f;
@@ -7648,7 +7658,7 @@ td {
 
 .dispositionSidePanel {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .dispositionGuideCard h3,
@@ -7665,18 +7675,11 @@ td {
   color: #0C61F1;
 }
 
-.dispositionGuideCard p {
-  margin: 8px 0 14px;
-  color: #5A5F99;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
 .dispositionGuideCard section {
   position: relative;
   display: grid;
   gap: 3px;
-  padding: 0 0 14px 22px;
+  padding: 0 0 15px 34px;
 }
 
 .dispositionGuideCard section:last-child {
@@ -7686,11 +7689,17 @@ td {
 .dispositionGuideCard section i {
   position: absolute;
   left: 0;
-  top: 3px;
-  width: 10px;
-  height: 10px;
+  top: 1px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
   border-radius: 999px;
+  color: #ffffff;
   background: #0C61F1;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
 }
 
 .dispositionGuideCard section strong {
@@ -7706,19 +7715,19 @@ td {
 
 .dispositionActivityCard {
   display: grid;
-  gap: 12px;
+  gap: 11px;
 }
 
 .dispositionActivityItem {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 9px;
   align-items: center;
 }
 
 .dispositionActivityItem > span {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -7727,18 +7736,19 @@ td {
 
 .dispositionActivityItem.green > span { background: #16b878; }
 .dispositionActivityItem.orange > span { background: #f59e0b; }
+.dispositionActivityItem.blue > span { background: #0C61F1; }
 .dispositionActivityItem.purple > span { background: #7c4dff; }
 
 .dispositionActivityItem svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
 }
 
 .dispositionActivityItem strong {
   display: block;
   overflow: hidden;
   color: #17205f;
-  font-size: 12px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -7751,6 +7761,16 @@ td {
 
 .dispositionActivityItem time {
   white-space: nowrap;
+}
+
+.dispositionActivityLink {
+  justify-self: start;
+  border: 0;
+  padding: 2px 0 0;
+  color: #0C61F1;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .archiveFolderPanel {
@@ -10191,6 +10211,843 @@ td {
   line-height: 1.45;
 }
 
+.userDispositionPage {
+  display: block;
+}
+
+.userDispositionGrid {
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.userDispositionPage .disposisiList,
+.userDispositionPage .followupPanel {
+  border-color: #8fb3ff;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.userDispositionPage .disposisiList {
+  padding: 28px 24px;
+}
+
+.userDispositionPage .panelHeader {
+  margin-bottom: 22px;
+}
+
+.userDispositionPage .panelHeader h3 {
+  color: #11185f;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.userDispositionPage .panelHeader button {
+  border: 0;
+  padding: 0;
+  color: #005af5;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.userDispositionPage .disposisiCards {
+  gap: 14px;
+}
+
+.userDispositionPage .disposisiCard {
+  padding: 18px;
+  border-color: #9ab8ff;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.userDispositionPage .disposisiCard .status {
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 0 12px;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.userDispositionPage .disposisiCard h4 {
+  margin: 16px 0 6px;
+  color: #11185f;
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 900;
+}
+
+.userDispositionPage .disposisiCard p,
+.userDispositionPage .disposisiMeta {
+  color: #4d5794;
+  font-size: 13px;
+}
+
+.userDispositionPage .disposisiMeta {
+  margin-top: 14px;
+}
+
+.userDispositionPage .disposisiActions {
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.userDispositionPage .disposisiActions .primaryBtn,
+.userDispositionPage .disposisiActions .softBtn {
+  min-height: 40px;
+  border-radius: 9px;
+  padding: 0 18px;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.userDispositionPage .disposisiActions .softBtn {
+  border-color: #99b8ff;
+  color: #11185f;
+  background: #ffffff;
+}
+
+.userDispositionPage .disposisiActions .primaryBtn {
+  background: linear-gradient(100deg, #0049f4 0%, #2c8cff 100%);
+  box-shadow: none;
+}
+
+.userDispositionPage .followupPanel {
+  min-height: 514px;
+  padding: 26px;
+}
+
+.userDispositionPage .followupPanel .mail3d {
+  width: 78px;
+  height: 78px;
+  border-radius: 26px;
+  margin-bottom: 24px;
+}
+
+.userDispositionPage .followupPanel h3 {
+  margin-bottom: 22px;
+  color: #11185f;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.userDispositionPage .followupSteps {
+  gap: 20px;
+}
+
+.userDispositionPage .followupSteps div {
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.userDispositionPage .followupSteps b {
+  border-radius: 12px;
+  background: #0054f4;
+  font-weight: 900;
+}
+
+.userDispositionPage .followupSteps strong {
+  color: #11185f;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.userDispositionPage .followupSteps small {
+  color: #4d5794;
+  font-size: 13px;
+}
+
+.disposisiEmptyCard {
+  display: grid;
+  gap: 6px;
+  padding: 20px;
+  border: 1px dashed #9ab8ff;
+  border-radius: 16px;
+  color: #4d5794;
+  background: #f8fbff;
+}
+
+.disposisiEmptyCard strong {
+  color: #11185f;
+  font-size: 15px;
+}
+
+.userDispositionHeader {
+  margin-bottom: 18px;
+}
+
+.userDispositionHeader h1 {
+  margin: 0;
+  color: #11185f;
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.userDispositionHeader p {
+  margin: 7px 0 0;
+  color: #4d5794;
+  font-size: 13px;
+}
+
+.userDispositionStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.userDispositionStat {
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #dce8ff;
+  border-radius: 12px;
+  padding: 18px;
+  text-align: left;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(31, 71, 136, 0.05);
+}
+
+.userDispositionStat > span {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+}
+
+.userDispositionStat.orange > span { background: #ff9f1c; }
+.userDispositionStat.blue > span { background: #1677ff; }
+.userDispositionStat.green > span { background: #43c464; }
+
+.userDispositionStat svg {
+  width: 22px;
+  height: 22px;
+}
+
+.userDispositionStat small {
+  color: #4d5794;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.userDispositionStat strong {
+  display: block;
+  margin-top: 2px;
+  color: #11185f;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.userDispositionStat p {
+  margin: 4px 0 0;
+  color: #6b75a5;
+  font-size: 11px;
+}
+
+.userDispositionGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 18px;
+  align-items: start;
+}
+
+.userDispositionPage .disposisiList {
+  padding: 18px;
+  border-color: #dce8ff;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(31, 71, 136, 0.05);
+}
+
+.userDispositionListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.userDispositionListHeader h3 {
+  margin: 0;
+  color: #11185f;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.userDispositionListHeader > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.userDispositionSearch {
+  min-width: 240px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dce8ff;
+  border-radius: 7px;
+  padding: 0 10px;
+  color: #7b86b8;
+  background: #ffffff;
+}
+
+.userDispositionSearch svg {
+  width: 15px;
+  height: 15px;
+}
+
+.userDispositionSearch input,
+.userDispositionListHeader select {
+  border: 0;
+  outline: 0;
+  color: #11185f;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.userDispositionSearch input {
+  width: 100%;
+}
+
+.userDispositionListHeader select {
+  min-height: 34px;
+  border: 1px solid #dce8ff;
+  border-radius: 7px;
+  padding: 0 10px;
+  background: #ffffff;
+}
+
+.userDispositionRows {
+  display: grid;
+  gap: 10px;
+}
+
+.userDispositionRow {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 14px;
+  border: 1px solid #e1ebff;
+  border-radius: 10px;
+  padding: 13px;
+  background: #ffffff;
+}
+
+.userDispositionRowIcon {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 10px;
+}
+
+.userDispositionRowIcon span {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.userDispositionRowIcon i {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-style: normal;
+}
+
+.userDispositionRowIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.userDispositionRow.orange .userDispositionRowIcon span { color: #c66a00; background: #fff1d8; }
+.userDispositionRow.orange .userDispositionRowIcon i { color: #ff9f1c; background: #fff4df; }
+.userDispositionRow.blue .userDispositionRowIcon span { color: #0c61f1; background: #e9f2ff; }
+.userDispositionRow.blue .userDispositionRowIcon i { color: #0c61f1; background: #eaf3ff; }
+.userDispositionRow.green .userDispositionRowIcon span { color: #1b9343; background: #e8f8ee; }
+.userDispositionRow.green .userDispositionRowIcon i { color: #24a84f; background: #e8f8ee; }
+
+.userDispositionRowBody {
+  min-width: 0;
+}
+
+.userDispositionRowTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.userDispositionRowTop h4 {
+  margin: 0;
+  color: #11185f;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 900;
+}
+
+.userDispositionRowTop time {
+  flex: 0 0 auto;
+  color: #61709c;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.userDispositionRowBody p,
+.userDispositionRowMeta {
+  margin: 5px 0 0;
+  color: #4d5794;
+  font-size: 11px;
+}
+
+.userDispositionRowMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.userDispositionRowMeta b {
+  color: #16a34a;
+}
+
+.userDispositionRowActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.userDispositionRowActions .softBtn,
+.userDispositionRowActions .primaryBtn {
+  min-height: 30px;
+  border-radius: 6px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.userDispositionRowActions .softBtn {
+  border-color: #c7d9ff;
+  color: #0054f4;
+  background: #ffffff;
+}
+
+.userDispositionRowActions .primaryBtn {
+  background: #0054f4;
+}
+
+.userDispositionRowActions svg {
+  width: 13px;
+  height: 13px;
+}
+
+.userDispositionFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  color: #61709c;
+  font-size: 11px;
+}
+
+.userDispositionFooter > div {
+  display: flex;
+  gap: 6px;
+}
+
+.userDispositionFooter button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #dce8ff;
+  border-radius: 6px;
+  color: #11185f;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.userDispositionFooter button.active {
+  color: #ffffff;
+  border-color: #0054f4;
+  background: #0054f4;
+}
+
+.userDispositionFooter button:disabled {
+  opacity: 0.45;
+}
+
+.userDispositionSide {
+  display: grid;
+  gap: 14px;
+}
+
+.userDispositionSide .followupPanel,
+.userDispositionActivity {
+  min-height: auto;
+  border: 1px solid #dce8ff;
+  border-radius: 12px;
+  padding: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(31, 71, 136, 0.05);
+}
+
+.userDispositionSide .followupPanel h3,
+.userDispositionActivity h3 {
+  margin: 0 0 16px;
+  color: #11185f;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.userDispositionSide .followupSteps {
+  gap: 16px;
+}
+
+.userDispositionSide .followupSteps div {
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.userDispositionSide .followupSteps b {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #0054f4;
+  font-size: 12px;
+}
+
+.userDispositionSide .followupSteps strong {
+  font-size: 12px;
+}
+
+.userDispositionSide .followupSteps small {
+  font-size: 11px;
+}
+
+.userDispositionActivity {
+  display: grid;
+  gap: 12px;
+}
+
+.userDispositionActivityItem {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+}
+
+.userDispositionActivityItem > span {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+}
+
+.userDispositionActivityItem.green > span { background: #43c464; }
+.userDispositionActivityItem.blue > span { background: #1677ff; }
+.userDispositionActivityItem.orange > span { background: #ff9f1c; }
+
+.userDispositionActivityItem svg {
+  width: 12px;
+  height: 12px;
+}
+
+.userDispositionActivityItem strong {
+  display: block;
+  overflow: hidden;
+  color: #11185f;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userDispositionActivityItem small,
+.userDispositionActivityItem time {
+  color: #61709c;
+  font-size: 10px;
+}
+
+.userDispositionActivity button {
+  justify-self: start;
+  border: 0;
+  padding: 0;
+  color: #0054f4;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.userDispositionDocumentPage {
+  display: grid;
+  gap: 18px;
+}
+
+.documentBackLink {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  min-height: 34px;
+  padding: 0 4px;
+  color: #0054f4;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.documentBackLink svg {
+  width: 16px;
+  height: 16px;
+}
+
+.documentDetailHeader,
+.documentPreviewHeader,
+.documentDetailFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.documentDetailHeader h1 {
+  margin: 0;
+  color: #11185f;
+  font-size: 26px;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.documentDetailHeader p {
+  margin: 7px 0 0;
+  color: #4d5794;
+  font-size: 13px;
+}
+
+.documentDetailHeader .softBtn,
+.documentPreviewHeader .softBtn,
+.documentDetailFooter .softBtn,
+.documentDetailFooter .primaryBtn {
+  min-height: 36px;
+  border-radius: 7px;
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.documentDetailCard {
+  border: 1px solid #dce8ff;
+  border-radius: 10px;
+  padding: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(31, 71, 136, 0.04);
+}
+
+.documentDetailCard h2,
+.documentPreviewHeader h2 {
+  margin: 0 0 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #11185f;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.documentDetailCard h2 svg,
+.documentPreviewHeader h2 svg {
+  width: 17px;
+  height: 17px;
+  color: #0054f4;
+}
+
+.documentInfoGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px 28px;
+}
+
+.documentInfoGrid div,
+.instructionInfoGrid div {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.documentInfoGrid small,
+.instructionInfoGrid small {
+  color: #51649d;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.documentInfoGrid strong,
+.instructionInfoGrid strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #11185f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.instructionInfoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1.4fr 1fr;
+  gap: 18px;
+}
+
+.instructionInfoGrid div:nth-child(5) {
+  grid-column: 1 / 2;
+}
+
+.instructionInfoGrid p {
+  margin: 0;
+  border-radius: 8px;
+  padding: 10px;
+  color: #11185f;
+  background: #edf5ff;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.documentPreviewHeader h2 {
+  margin-bottom: 0;
+}
+
+.documentPreviewCard {
+  padding: 16px 18px 18px;
+}
+
+.documentPreviewHeader .softBtn {
+  min-height: 26px;
+  border-color: #cbdcff;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #0054f4;
+  background: #ffffff;
+  font-size: 10px;
+}
+
+.documentFileList {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.documentFileItem {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto 34px;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #e4edff;
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: #ffffff;
+}
+
+.pdfIcon {
+  width: 30px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: #ffffff;
+  background: #ef4444;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.pdfIcon.red {
+  background: #ef4444;
+}
+
+.pdfIcon.green {
+  background: #22c55e;
+}
+
+.documentFileItem strong,
+.documentFileItem small {
+  display: block;
+}
+
+.documentFileItem strong {
+  color: #11185f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.documentFileItem small {
+  margin-top: 3px;
+  color: #51649d;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.documentFileItem .softBtn {
+  min-height: 28px;
+  border-color: #cbdcff;
+  border-radius: 6px;
+  padding: 0 11px;
+  color: #0054f4;
+  background: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.documentFileItem .iconBtn {
+  width: 30px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 6px;
+  border-color: #cbdcff;
+  color: #0054f4;
+  background: #ffffff;
+}
+
+.documentFileItem .iconBtn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.documentDetailFooter {
+  justify-content: flex-end;
+}
+
+.documentDetailFooter .primaryBtn {
+  min-height: 32px;
+  border-radius: 6px;
+  padding: 0 16px;
+  font-size: 11px;
+  box-shadow: none;
+}
+
+.documentDetailFooter .primaryBtn svg {
+  width: 13px;
+  height: 13px;
+}
+
 .followupFormPanel {
   display: grid;
   gap: 14px;
@@ -11343,6 +12200,43 @@ td {
   .operatorAjuanStatusGrid {
     grid-template-columns: 1fr;
   }
+
+  .userDispositionListHeader,
+  .userDispositionListHeader > div,
+  .userDispositionRowTop,
+  .userDispositionFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .userDispositionSearch {
+    min-width: 0;
+  }
+
+  .userDispositionRow {
+    grid-template-columns: 1fr;
+  }
+
+  .userDispositionRowIcon {
+    justify-items: start;
+  }
+
+  .userDispositionRowActions {
+    grid-template-columns: 1fr;
+  }
+
+  .documentDetailHeader,
+  .documentPreviewHeader,
+  .documentDetailFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .documentInfoGrid,
+  .instructionInfoGrid,
+  .documentFileItem {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1120px) {
@@ -11367,6 +12261,19 @@ td {
 
   .disposisiGrid {
     grid-template-columns: 1fr;
+  }
+
+  .userDispositionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .userDispositionStats {
+    grid-template-columns: 1fr;
+  }
+
+  .documentInfoGrid,
+  .instructionInfoGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .ajuanDetailGrid {
@@ -11941,5 +12848,13 @@ td {
   .loginCard {
     width: 100%;
     padding: 28px 0 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .documentInfoGrid,
+  .instructionInfoGrid,
+  .documentFileItem {
+    grid-template-columns: 1fr;
   }
 }

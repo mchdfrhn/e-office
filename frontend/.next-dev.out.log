@@ -4,10 +4,32 @@
 
 ▲ Next.js 16.2.4 (webpack)
 - Local:         http://localhost:3000
-- Network:       http://192.168.100.65:3000
-✓ Ready in 3.8s
+- Network:       http://192.168.0.164:3000
+✓ Ready in 26.5s
 
 ○ Compiling / ...
- GET / 200 in 12.4s (next.js: 9.7s, application-code: 2.7s)
- GET / 200 in 1571ms (next.js: 75ms, application-code: 1496ms)
- GET / 200 in 901ms (next.js: 18ms, application-code: 883ms)
+ GET / 200 in 17.9s (next.js: 14.1s, application-code: 3.8s)
+ GET / 200 in 1383ms (next.js: 108ms, application-code: 1276ms)
+ GET / 200 in 850ms (next.js: 214ms, application-code: 636ms)
+ GET / 200 in 3.5s (next.js: 2.1s, application-code: 1488ms)
+ GET / 200 in 457ms (next.js: 17ms, application-code: 439ms)
+ GET / 200 in 295ms (next.js: 14ms, application-code: 281ms)
+ GET / 200 in 3.8s (next.js: 1912ms, application-code: 1908ms)
+ GET / 200 in 228ms (next.js: 33ms, application-code: 195ms)
+ GET / 200 in 377ms (next.js: 37ms, application-code: 339ms)
+ GET / 200 in 13.0s (next.js: 7.5s, application-code: 5.5s)
+ GET / 200 in 1952ms (next.js: 564ms, application-code: 1388ms)
+ GET / 200 in 201ms (next.js: 20ms, application-code: 181ms)
+ GET / 200 in 3.6s (next.js: 2.4s, application-code: 1234ms)
+ GET / 200 in 20.2s (next.js: 10.0s, application-code: 10.1s)
+ GET / 200 in 1413ms (next.js: 216ms, application-code: 1197ms)
+ GET / 200 in 2.7s (next.js: 973ms, application-code: 1685ms)
+ GET / 200 in 3.6s (next.js: 1550ms, application-code: 2.1s)
+ GET / 200 in 368ms (next.js: 236ms, application-code: 132ms)
+ GET / 200 in 2.8s (next.js: 1571ms, application-code: 1235ms)
+ GET / 200 in 152ms (next.js: 18ms, application-code: 134ms)
+ GET / 200 in 1862ms (next.js: 1399ms, application-code: 464ms)
+ GET / 200 in 1176ms (next.js: 116ms, application-code: 1061ms)
+ GET / 200 in 3.1s (next.js: 1540ms, application-code: 1583ms)
+ GET / 200 in 1365ms (next.js: 833ms, application-code: 532ms)
+ GET / 200 in 1750ms (next.js: 276ms, application-code: 1474ms)
