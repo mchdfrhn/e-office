@@ -2338,11 +2338,25 @@ function DetailItem({ icon, label, value, wide = false }) {
   );
 }
 
-function validateUploadFile(file) {
+function validateUploadFile(file, accept = ".pdf,application/pdf") {
   if (!file?.name) return "";
   const ext = file.name.split(".").pop().toLowerCase();
-  if (ext !== "pdf") return "Format file harus PDF.";
-  if (file.type && file.type !== "application/pdf") return "Tipe file harus application/pdf.";
+  const acceptValue = String(accept || "").toLowerCase();
+  const allowedExts = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]
+    .filter((item) => acceptValue.includes(item))
+    .map((item) => item.slice(1));
+  const finalExts = allowedExts.length ? allowedExts : ["pdf"];
+  const mimeByExt = {
+    pdf: ["application/pdf"],
+    doc: ["application/msword"],
+    docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+    jpg: ["image/jpeg"],
+    jpeg: ["image/jpeg"],
+    png: ["image/png"]
+  };
+  if (!finalExts.includes(ext)) return `Format file harus ${finalExts.map((item) => item.toUpperCase()).join(", ")}.`;
+  const acceptedMimes = finalExts.flatMap((item) => mimeByExt[item] || []);
+  if (file.type && acceptedMimes.length && !acceptedMimes.includes(file.type)) return `Tipe file tidak sesuai dengan format ${ext.toUpperCase()}.`;
   if (file.size > 10 * 1024 * 1024) return "Ukuran file maksimal 10 MB.";
   return "";
 }
@@ -2434,6 +2448,10 @@ function getAttachmentDownloadPath(attachment) {
 
 function getAttachmentStorageKey(attachment) {
   return attachment?.[5] || "";
+}
+
+function hasStoredAttachmentPayload(attachment) {
+  return Boolean(attachment?.[3] || getAttachmentStorageKey(attachment) || getAttachmentDownloadPath(attachment));
 }
 
 async function fetchAuthorizedDocument(path) {
@@ -2528,10 +2546,16 @@ function createLetterDocumentAttachment(spec) {
     `Nomor: ${spec.number || "-"}`,
     `Jenis: ${spec.kind || "-"}`,
     `Perihal: ${spec.subject || "-"}`,
-    `Pihak terkait: ${spec.party || "-"}`,
+    spec.partyLabel ? `${spec.partyLabel}: ${spec.party || "-"}` : `Pihak terkait: ${spec.party || "-"}`,
+    ...(spec.operator ? [`Diteruskan oleh: ${spec.operator}`] : []),
+    ...(spec.leader ? [`Ditetapkan oleh: ${spec.leader}`] : []),
+    ...(spec.recipient ? [`${spec.recipientLabel || "Tujuan disposisi"}: ${spec.recipient}`] : []),
+    ...(spec.deadline ? [`Batas waktu: ${spec.deadline}`] : []),
     `Status: ${spec.status || "-"}`,
     "",
-    spec.summary || "Dokumen surat dibuat dari data e-office."
+    spec.summary || "Dokumen surat dibuat dari data e-office.",
+    ...(spec.note ? ["", spec.note] : []),
+    ...(spec.signer ? ["", `Penanggung jawab: ${spec.signer}`] : [])
   ];
   const pdf = createSimplePdf(title, lines);
   return [filename, formatFileSize(new Blob([pdf]).size), spec.meta || "Dibuat otomatis oleh sistem", createDataUrl(pdf, "application/pdf"), "application/pdf"];
@@ -2762,7 +2786,7 @@ function UploadDropzone({ label, name, accept, formats }) {
 
   function handleFileChange(event) {
     const file = event.target.files?.[0] || null;
-    const nextError = validateUploadFile(file);
+    const nextError = validateUploadFile(file, accept);
     setUploadError(nextError);
     setSelectedFile(nextError ? null : file);
     if (nextError) event.target.value = "";
@@ -3420,7 +3444,30 @@ function generateDispositionNumber() {
   return `DSP/${byType.year}/${byType.month}/${String(Date.now()).slice(-5)}`;
 }
 
+function getStoredIncomingAttachmentsForDisposition(item) {
+  const agenda = item.agenda_number || item.agenda || "";
+  const letterNumber = item.letter_number || item.nomorSurat || "";
+  const incomingRows = getActiveIncomingLetters(readLocalJson(LOCAL_INCOMING_KEY, []));
+  const source = incomingRows.find((row) => (
+    (agenda && (row.agenda_number || row.agendaNumber || row.agenda) === agenda) ||
+    (letterNumber && (row.letter_number || row.letterNumber) === letterNumber)
+  ));
+  const document = source?.document;
+  const documentName = document?.original_name || document?.name;
+  if (!documentName) return [];
+  return [[
+    documentName,
+    formatFileSize(document.file_size_bytes || document.size || 1),
+    document.uploaded_at ? `Diunggah operator ${formatDateTime(document.uploaded_at)}` : "Diunggah operator",
+    document.dataUrl || "",
+    document.mime_type || document.type || "application/pdf",
+    document.storageKey || "",
+    document.download_path || ""
+  ]];
+}
+
 function mapDispositionToUserRow(item) {
+  const lampiran = item.lampiran || item.attachments || getStoredIncomingAttachmentsForDisposition(item);
   const row = [
     item.disposition_number || item.nomor || generateDispositionNumber(),
     item.instruction || item.instruksi || item.subject || "Instruksi disposisi",
@@ -3436,12 +3483,18 @@ function mapDispositionToUserRow(item) {
     pengirim: item.sender || item.pengirim || "",
     perihal: item.subject || item.perihal || row[1],
     targetName: item.target_user_name || item.targetName || "User",
-    sentAt: item.sent_at || item.createdAt || new Date().toISOString()
+    sentAt: item.sent_at || item.createdAt || new Date().toISOString(),
+    prioritas: dispositionPriorityLabel(item.priority || item.prioritas),
+    deadline: formatDateOnly(item.due_date || item.dueDate),
+    catatan: item.instruction || item.instruksi || row[1],
+    instruksi: item.instruction || item.instruksi || row[1],
+    lampiran
   };
   return row;
 }
 
 function mapDispositionToPimpinanRow(item) {
+  const lampiran = item.lampiran || item.attachments || getStoredIncomingAttachmentsForDisposition(item);
   const row = [
     item.disposition_number || item.nomor || generateDispositionNumber(),
     item.letter_number || item.nomorSurat || item.agenda_number || item.agenda || "-",
@@ -3459,6 +3512,7 @@ function mapDispositionToPimpinanRow(item) {
     deadline: formatDateOnly(item.due_date || item.dueDate),
     catatan: item.instruction || item.instruksi || row[3],
     instruksi: item.instruction || item.instruksi || row[3],
+    lampiran,
     penerima: [row[2]],
     riwayat: [[formatDateTime(item.sent_at || item.createdAt || new Date().toISOString()), "Pimpinan membuat disposisi"]]
   };
@@ -3565,6 +3619,7 @@ function PimpinanIncomingReview({ setConfirm }) {
 
   async function saveDispositionFromProcess(detail, form) {
     const dispositionNumber = generateDispositionNumber();
+    const sourceAttachments = (detail.lampiran || []).map(stripAttachmentPayload);
     const localDisposition = {
       id: `local-${Date.now()}`,
       disposition_number: dispositionNumber,
@@ -3579,6 +3634,7 @@ function PimpinanIncomingReview({ setConfirm }) {
       due_date: form.dueDate,
       status: "dikirim",
       giver_name: "Dewi Pimpinan",
+      lampiran: sourceAttachments,
       createdAt: new Date().toISOString()
     };
 
@@ -3956,7 +4012,6 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
           <article className="processCard processDocumentCard">
             <div className="processCardHeader">
               <h2><LineIcon name="doc" /> Preview Dokumen</h2>
-              <button type="button" onClick={downloadAllDocuments}><LineIcon name="upload" /> Unduh Semua</button>
             </div>
             <div className="processDocumentList">
               {documentRows.map(({ attachment, name, type, size, tone }) => (
@@ -3966,8 +4021,8 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
                     <strong>{name}</strong>
                     <small>{type} - {size}</small>
                   </div>
-                  <button type="button" className="processViewDoc" onClick={() => previewLetterDocument(incomingDocumentSpec(detail, attachment), setPreviewDocument, handleDocumentError)}><LineIcon name="eye" /> Lihat</button>
-                  <button type="button" className="processDownloadDoc" onClick={() => downloadLetterDocument(incomingDocumentSpec(detail, attachment), handleDocumentError)} aria-label={`Unduh ${name}`}><LineIcon name="upload" /></button>
+                  <button type="button" className="processViewDoc previewDocViewBtn" onClick={() => previewLetterDocument(incomingDocumentSpec(detail, attachment), setPreviewDocument, handleDocumentError)}><LineIcon name="eye" /> Lihat</button>
+                  <button type="button" className="processDownloadDoc previewDocDownloadBtn" onClick={() => downloadLetterDocument(incomingDocumentSpec(detail, attachment), handleDocumentError)} aria-label={`Unduh ${name}`}><LineIcon name="download" /></button>
                 </div>
               ))}
             </div>
@@ -5119,19 +5174,19 @@ function DisposisiMasukHome({ setConfirm }) {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const openFollowup = (row = dispositionItems[0]) => {
-    const [id, instruksi, pemberi, prioritas, deadline, status] = row;
-    setSelectedDocument(null);
-    setFollowupDraft({ id, instruksi, pemberi, prioritas, deadline, status });
-  };
-  const openDocument = (row) => {
+  const buildDispositionDetail = (row) => {
     const [id, instruksi, pemberi, prioritas, deadline, status] = row;
     const detail = row.detail || {};
     const nomorSurat = detail.nomorSurat || id.replace("DSP", "SM");
     const perihal = detail.perihal || instruksi;
     const pengirim = detail.pengirim || "SMKN 1 BOJONGPICUNG";
-    setFollowupDraft(null);
-    setSelectedDocument({
+    const sourceAttachments = detail.lampiran?.length ? detail.lampiran : [["Surat_Masuk_Diteruskan_Operator.pdf", "245 KB", "Diteruskan operator ke pimpinan"]];
+    const hasDispositionNote = sourceAttachments.some((attachment) => String(attachment?.[0] || "").toLowerCase().includes("disposisi"));
+    const dispositionAttachments = hasDispositionNote ? sourceAttachments : [
+      ...sourceAttachments,
+      ["Nota_Disposisi_Pimpinan.pdf", "180 KB", "Instruksi disposisi dari pimpinan"]
+    ];
+    return {
       id,
       instruksi,
       pemberi,
@@ -5148,11 +5203,16 @@ function DisposisiMasukHome({ setConfirm }) {
       tujuan: "Untuk Budi Santoso (Bagian Kemahasiswaan)",
       perihal,
       catatan: detail.catatan || detail.instruksi || `Mohon ditindaklanjuti sesuai prosedur dan koordinasikan dengan pihak terkait.`,
-      lampiran: detail.lampiran || [
-        ["Surat Permohonan.pdf", "245 KB", "Lampiran surat masuk"],
-        ["Proposal Penelitian.pdf", "1.2 MB", "Lampiran pendukung"]
-      ]
-    });
+      lampiran: dispositionAttachments
+    };
+  };
+  const openFollowup = (row = dispositionItems[0]) => {
+    setSelectedDocument(null);
+    setFollowupDraft(buildDispositionDetail(row));
+  };
+  const openDocument = (row) => {
+    setFollowupDraft(null);
+    setSelectedDocument(buildDispositionDetail(row));
   };
   const selectedDocumentSpec = selectedDocument ? {
     title: selectedDocument.jenis,
@@ -5193,18 +5253,178 @@ function DisposisiMasukHome({ setConfirm }) {
     });
   };
 
+  if (followupDraft) {
+    const infoItems = [
+      ["Nomor Agenda", followupDraft.agenda],
+      ["Nomor Surat", followupDraft.nomor],
+      ["Tanggal Surat", followupDraft.tanggalSurat],
+      ["Pengirim", followupDraft.pengirim],
+      ["Perihal", followupDraft.perihal],
+      ["Sifat", followupDraft.prioritas || "Biasa"],
+      ["Lampiran", `${followupDraft.lampiran?.length || 0} berkas`]
+    ];
+    const instructionColumns = [
+      [
+        ["Dari", `${followupDraft.pemberi} (Pimpinan)`],
+        ["Untuk", followupDraft.tujuan.replace(/^Untuk\s+/i, "")]
+      ],
+      [
+        ["Tanggal Disposisi", followupDraft.tanggalDisposisi],
+        ["Batas Waktu", followupDraft.deadline]
+      ]
+    ];
+    const submitFollowup = (event) => {
+      event.preventDefault();
+      setConfirm({
+        title: "Kirim tindak lanjut?",
+        body: `Hasil tindak lanjut untuk ${followupDraft.id} akan dikirim ke pimpinan dan dicatat pada audit trail.`,
+        onConfirm: () => {
+          setDispositionItems((current) => current.map((row) => {
+            if (row[0] !== followupDraft.id) return row;
+            const nextRow = [...row.slice(0, 5), "Ditindaklanjuti"];
+            nextRow.detail = row.detail;
+            return nextRow;
+          }));
+          writeLocalDispositions(readLocalDispositions().map((item) => (
+            (item.disposition_number || item.nomor) === followupDraft.id ? { ...item, status: "ditindaklanjuti" } : item
+          )));
+          setFollowupDraft(null);
+        }
+      });
+    };
+
+    return (
+      <section className="followupPage">
+        <button type="button" className="followupBackLink" onClick={() => setFollowupDraft(null)}><LineIcon name="arrowLeft" /> Kembali ke Disposisi Masuk</button>
+        <header className="followupPageHeader">
+          <h1>Tindak Lanjut Disposisi</h1>
+          <p>Lengkapi tindak lanjut atas disposisi dari pimpinan dan kirim hasil pelaksanaan.</p>
+        </header>
+
+        <section className="followupDetailCard">
+          <h2><LineIcon name="doc" /> Informasi Surat</h2>
+          <div className="followupInfoGrid">
+            {infoItems.map(([label, value]) => (
+              <div key={label}><span>{label}</span><b>:</b><strong>{value || "-"}</strong></div>
+            ))}
+          </div>
+        </section>
+
+        <section className="followupDetailCard">
+          <h2><LineIcon name="clipboard" /> Instruksi Disposisi</h2>
+          <div className="followupInstructionGrid">
+            {instructionColumns.map((column, index) => (
+              <div className="followupInstructionColumn" key={index === 0 ? "sender-date" : "recipient-deadline"}>
+                {column.map(([label, value]) => (
+                  <div key={label}><span>{label}</span><b>:</b><strong>{value || "-"}</strong></div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <p className="followupInstructionNote"><LineIcon name="info" /> {followupDraft.catatan}</p>
+        </section>
+
+        <form className="followupDetailCard followupSubmitForm" onSubmit={submitFollowup}>
+          <div className="followupFormTitle">
+            <h2><LineIcon name="clipboard" /> Form Tindak Lanjut</h2>
+            <div className="followupStepper" aria-label="Status tindak lanjut">
+              {[
+                ["Diterima", followupDraft.tanggalDisposisi?.split(",")[0] || "3 Juli 2026", true],
+                ["Diproses", "Sedang berlangsung", true],
+                ["Dikirim", "Menunggu kirim", false]
+              ].map(([title, body, active], index) => (
+                <div className={active ? "active" : ""} key={title}><span>{index + 1}</span><strong>{title}</strong><small>{body}</small></div>
+              ))}
+            </div>
+          </div>
+
+          <div className="followupFormGrid">
+            <label>Status Tindak Lanjut <em>*</em>
+              <select defaultValue="Sedang Diproses" required>
+                <option>Sedang Diproses</option>
+                <option>Selesai</option>
+              </select>
+            </label>
+            <label>Tanggal Tindak Lanjut <em>*</em>
+              <input type="date" required />
+            </label>
+            <label className="wide">Ringkasan Tindak Lanjut <em>*</em>
+              <input placeholder="Contoh: Koordinasi dengan jurusan terkait dan peninjauan kebutuhan praktik" required />
+            </label>
+            <label className="wide">Uraian Hasil / Catatan Pelaksanaan <em>*</em>
+              <textarea rows={4} placeholder="Jelaskan hasil pelaksanaan tindak lanjut, progres, kendala, dan rencana selanjutnya..." required />
+            </label>
+            <label>Pihak yang Dikoordinasikan
+              <input placeholder="Contoh: Wakil Ketua I, Kepala Jurusan Teknik Sipil" />
+            </label>
+            <div className="followupUploadBox">
+              <strong>Upload Dokumen Pendukung / Hasil</strong>
+              <UploadDropzone accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" formats="PDF, DOCX, JPG, PNG. Maksimal 10 MB." />
+            </div>
+          </div>
+
+          <label className="followupCheck">
+            <input type="checkbox" defaultChecked required />
+            <span>Saya menyatakan tindak lanjut telah dikerjakan sesuai instruksi pimpinan.</span>
+          </label>
+
+          <div className="followupSubmitBar">
+            <button type="button" className="softBtn" onClick={() => setFollowupDraft(null)}>Batal</button>
+            <button type="button" className="softBtn" onClick={() => setConfirm({ title: "Draft tersimpan", body: `Draft tindak lanjut untuk ${followupDraft.id} tersimpan sementara.` })}>Simpan Draft</button>
+            <button type="submit" className="primaryBtn"><LineIcon name="send" /> Kirim Tindak Lanjut</button>
+          </div>
+        </form>
+      </section>
+    );
+  }
+
   if (selectedDocument) {
-    const documentSpecs = selectedDocument.lampiran.map(([filename, size, meta]) => ({
-      title: selectedDocument.jenis,
-      filename,
-      number: selectedDocument.nomor,
-      kind: selectedDocument.jenis,
-      subject: selectedDocument.perihal,
-      party: selectedDocument.pengirim,
-      status: selectedDocument.status,
-      summary: selectedDocument.catatan,
-      meta: `${meta || "Dokumen disposisi"} - ${size || ""}`
-    }));
+    const documentSpecs = selectedDocument.lampiran.map((attachment) => {
+      const [filename, size, meta] = attachment || [];
+      const docMarker = `${filename || ""} ${meta || ""}`.toLowerCase();
+      const isDispositionNote = docMarker.includes("nota_disposisi") ||
+        docMarker.includes("nota disposisi") ||
+        docMarker.includes("instruksi disposisi") ||
+        docMarker.includes("disposisi dari pimpinan");
+      return isDispositionNote ? {
+        title: "Nota Disposisi Pimpinan",
+        filename,
+        number: selectedDocument.id,
+        kind: "Disposisi",
+        subject: selectedDocument.perihal,
+        partyLabel: "Pemberi disposisi",
+        party: selectedDocument.pemberi,
+        operator: "Rina Operator",
+        leader: selectedDocument.pemberi,
+        recipient: selectedDocument.tujuan,
+        recipientLabel: "Tujuan disposisi",
+        deadline: selectedDocument.deadline,
+        status: selectedDocument.status,
+        summary: selectedDocument.catatan,
+        note: "Dokumen ini merupakan instruksi resmi pimpinan yang diteruskan kepada penerima disposisi melalui E-Office.",
+        signer: selectedDocument.pemberi,
+        meta: `${meta || "Dokumen disposisi pimpinan"} - ${size || ""}`,
+        attachment: hasStoredAttachmentPayload(attachment) ? attachment : null
+      } : {
+        title: "Surat Masuk Diteruskan Operator",
+        filename,
+        number: selectedDocument.nomor,
+        kind: "Surat Masuk",
+        subject: selectedDocument.perihal,
+        partyLabel: "Pengirim surat",
+        party: selectedDocument.pengirim,
+        operator: "Rina Operator",
+        leader: selectedDocument.pemberi,
+        recipient: selectedDocument.tujuan,
+        recipientLabel: "Diteruskan kepada",
+        status: "Diteruskan ke Pimpinan",
+        summary: `Surat masuk dari ${selectedDocument.pengirim} telah diregistrasi dan diteruskan operator kepada ${selectedDocument.pemberi} untuk proses disposisi.`,
+        note: "Dokumen ini adalah surat sumber yang dikirim operator ke pimpinan sebelum disposisi dibuat.",
+        signer: "Rina Operator",
+        meta: `${meta || "Dokumen surat masuk dari operator"} - ${size || ""}`,
+        attachment: hasStoredAttachmentPayload(attachment) ? attachment : null
+      };
+    });
     const primarySpec = documentSpecs[0] || selectedDocumentSpec;
     const detailItems = [
       ["Nomor Agenda", selectedDocument.agenda],
@@ -5219,7 +5439,6 @@ function DisposisiMasukHome({ setConfirm }) {
 
     return (
       <section className="userDispositionDocumentPage">
-        <button type="button" className="documentBackLink" onClick={() => setSelectedDocument(null)}><LineIcon name="arrowLeft" /> Kembali</button>
         <header className="documentDetailHeader">
           <div>
             <h1>Dokumen Disposisi</h1>
@@ -5253,7 +5472,6 @@ function DisposisiMasukHome({ setConfirm }) {
         <section className="documentDetailCard documentPreviewCard">
           <div className="documentPreviewHeader">
             <h2><LineIcon name="doc" /> Preview Dokumen</h2>
-            <button type="button" className="softBtn" onClick={() => downloadLetterDocument(primarySpec)}><LineIcon name="upload" /> Unduh Semua</button>
           </div>
           <div className="documentFileList">
             {documentSpecs.map((spec, index) => (
@@ -5263,16 +5481,15 @@ function DisposisiMasukHome({ setConfirm }) {
                   <strong>{spec.filename}</strong>
                   <small>PDF - {selectedDocument.lampiran[index]?.[1] || "245 KB"}</small>
                 </div>
-                <button type="button" className="softBtn" onClick={() => previewLetterDocument(spec, setPreviewDocument)}><LineIcon name="eye" /> Lihat</button>
-                <button type="button" className="iconBtn" onClick={() => downloadLetterDocument(spec)} aria-label={`Unduh ${spec.filename}`}><LineIcon name="upload" /></button>
+                <button type="button" className="softBtn previewDocViewBtn" onClick={() => previewLetterDocument(spec, setPreviewDocument)}><LineIcon name="eye" /> Lihat</button>
+                <button type="button" className="iconBtn previewDocDownloadBtn" onClick={() => downloadLetterDocument(spec)} aria-label={`Unduh ${spec.filename}`}><LineIcon name="download" /></button>
               </article>
             ))}
           </div>
         </section>
 
         <footer className="documentDetailFooter">
-          <button type="button" className="softBtn" onClick={() => setSelectedDocument(null)}><LineIcon name="x" /> Tutup</button>
-          <button type="button" className="primaryBtn" onClick={() => setSelectedDocument(null)}><LineIcon name="arrowLeft" /> Kembali ke Daftar</button>
+          <button type="button" className="primaryBtn previewDocBackBtn" onClick={() => setSelectedDocument(null)}><LineIcon name="arrowLeft" /> Kembali ke Daftar</button>
         </footer>
         {previewDocument && <AttachmentPreviewModal attachment={previewDocument} detail={{ judul: "Dokumen Disposisi", keterangan: "Dokumen terkait disposisi." }} onClose={() => setPreviewDocument(null)} />}
       </section>
@@ -5483,6 +5700,7 @@ function LineIcon({ name }) {
     folder: <><path d="M3 6h7l2 2h9v11H3V6Z" {...common} /></>,
     archive: <><path d="M4 7h16v13H4V7Z" {...common} /><path d="M3 4h18v3H3V4Z" {...common} /><path d="M9 11h6" {...common} /></>,
     upload: <><path d="M12 16V4" {...common} /><path d="m7 9 5-5 5 5" {...common} /><path d="M5 20h14" {...common} /></>,
+    download: <><path d="M12 4v12" {...common} /><path d="m7 11 5 5 5-5" {...common} /><path d="M5 20h14" {...common} /></>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" {...common} /><path d="M10 21h4" {...common} /></>,
     user: <><circle cx="12" cy="8" r="4" {...common} /><path d="M4 21a8 8 0 0 1 16 0" {...common} /></>,
     lock: <><rect x="5" y="10" width="14" height="11" rx="2" {...common} /><path d="M8 10V7a4 4 0 0 1 8 0v3" {...common} /><path d="M12 15v2" {...common} /></>,

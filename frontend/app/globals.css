@@ -6665,6 +6665,48 @@ td {
   height: 13px;
 }
 
+.previewDocViewBtn,
+.previewDocBackBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 28px;
+  border-radius: 6px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.previewDocViewBtn {
+  min-width: 52px;
+  padding: 0 10px;
+  border: 1px solid #cbdcff;
+  color: #0054f4;
+  background: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.previewDocDownloadBtn {
+  width: 30px;
+  height: 28px;
+  min-height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #cbdcff;
+  border-radius: 6px;
+  padding: 0;
+  color: #0054f4;
+  background: #ffffff;
+}
+
+.previewDocViewBtn svg,
+.previewDocDownloadBtn svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+}
+
 .processPdfFrame {
   overflow: hidden;
   border-radius: 6px;
@@ -11035,6 +11077,26 @@ td {
   justify-content: flex-end;
 }
 
+.documentDetailFooter .previewDocBackBtn {
+  min-height: 32px;
+  border-radius: 6px;
+  padding: 0 14px;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: none;
+}
+
+.documentDetailFooter .previewDocBackBtn {
+  color: #ffffff;
+  background: #0054f4;
+}
+
+.documentDetailFooter .previewDocBackBtn svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+}
+
 .documentDetailFooter .primaryBtn {
   min-height: 32px;
   border-radius: 6px;
@@ -11149,6 +11211,320 @@ td {
 .followupForm .primaryBtn svg {
   width: 18px;
   height: 18px;
+}
+
+.followupPage {
+  display: grid;
+  gap: 16px;
+}
+
+.followupBackLink {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  color: #0054f4;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.followupBackLink svg {
+  width: 16px;
+  height: 16px;
+}
+
+.followupPageHeader h1 {
+  margin: 0;
+  color: #11185f;
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.followupPageHeader p {
+  margin: 8px 0 8px;
+  color: #4d5794;
+  font-size: 14px;
+}
+
+.followupDetailCard {
+  border: 1px solid #d3e0fb;
+  border-radius: 10px;
+  padding: 20px 22px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(31, 71, 136, 0.03);
+}
+
+.followupDetailCard h2,
+.followupFormTitle h2 {
+  margin: 0 0 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #11185f;
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.followupDetailCard h2 svg,
+.followupFormTitle h2 svg {
+  width: 18px;
+  height: 18px;
+  color: #0054f4;
+}
+
+.followupInfoGrid,
+.followupInstructionGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px 54px;
+}
+
+.followupInstructionGrid {
+  align-items: start;
+}
+
+.followupInstructionColumn {
+  display: grid;
+  gap: 14px;
+}
+
+.followupInfoGrid div,
+.followupInstructionColumn div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 150px 12px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  color: #11185f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.followupInfoGrid span,
+.followupInstructionColumn span {
+  color: #51649d;
+  font-weight: 900;
+}
+
+.followupInfoGrid strong,
+.followupInstructionColumn strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.followupInstructionNote {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 0;
+  border: 1px solid #bdd2ff;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: #25326f;
+  background: #f7fbff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.followupInstructionNote svg {
+  width: 17px;
+  height: 17px;
+  color: #0054f4;
+  flex: 0 0 17px;
+}
+
+.followupSubmitForm {
+  display: grid;
+  gap: 14px;
+}
+
+.followupFormTitle {
+  display: grid;
+  grid-template-columns: minmax(0, 270px) minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.followupStepper {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  position: relative;
+}
+
+.followupStepper::before {
+  content: "";
+  position: absolute;
+  top: 13px;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  background: #a9c0f4;
+}
+
+.followupStepper div {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  color: #51649d;
+  background: #ffffff;
+}
+
+.followupStepper span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #97a9d9;
+  border-radius: 999px;
+  color: #51649d;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.followupStepper .active span {
+  border-color: #0054f4;
+  color: #ffffff;
+  background: #0054f4;
+}
+
+.followupStepper strong,
+.followupStepper small {
+  display: block;
+}
+
+.followupStepper strong {
+  color: #11185f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.followupStepper small {
+  margin-top: 4px;
+  color: #6a73a6;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.followupFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
+}
+
+.followupFormGrid label,
+.followupUploadBox {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  color: #11185f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.followupFormGrid em {
+  color: #ff2d25;
+  font-style: normal;
+}
+
+.followupFormGrid input,
+.followupFormGrid select,
+.followupFormGrid textarea {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #cbd9f3;
+  border-radius: 7px;
+  padding: 0 12px;
+  color: #11185f;
+  background: #ffffff;
+  font: inherit;
+  font-weight: 700;
+}
+
+.followupFormGrid textarea {
+  min-height: 70px;
+  padding-top: 10px;
+  resize: vertical;
+}
+
+.followupFormGrid .wide {
+  grid-column: 1 / -1;
+}
+
+.followupUploadBox .uploadDropzone {
+  min-height: 78px;
+  border-radius: 8px;
+  border-color: #cbd9f3;
+}
+
+.followupUploadBox .uploadDropzone span {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 0;
+}
+
+.followupUploadBox .uploadDropzone svg {
+  width: 22px;
+  height: 22px;
+}
+
+.followupCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #39447f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.followupCheck input {
+  width: 16px;
+  height: 16px;
+  accent-color: #0054f4;
+}
+
+.followupSubmitBar {
+  display: grid;
+  grid-template-columns: 140px 160px minmax(190px, 240px);
+  justify-content: end;
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.followupSubmitBar .softBtn,
+.followupSubmitBar .primaryBtn {
+  min-height: 38px;
+  justify-content: center;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: none;
+}
+
+.followupSubmitBar .softBtn {
+  border: 1px solid #b9caf0;
+  color: #0054f4;
+  background: #ffffff;
+}
+
+.followupSubmitBar .primaryBtn {
+  background: #0054f4;
+}
+
+.followupSubmitBar svg {
+  width: 16px;
+  height: 16px;
 }
 
 .dispositionDocumentPanel {
