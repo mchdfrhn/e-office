@@ -5327,50 +5327,40 @@ function DisposisiMasukHome({ setConfirm }) {
         <form className="followupDetailCard followupSubmitForm" onSubmit={submitFollowup}>
           <div className="followupFormTitle">
             <h2><LineIcon name="clipboard" /> Form Tindak Lanjut</h2>
-            <div className="followupStepper" aria-label="Status tindak lanjut">
-              {[
-                ["Diterima", followupDraft.tanggalDisposisi?.split(",")[0] || "3 Juli 2026", true],
-                ["Diproses", "Sedang berlangsung", true],
-                ["Dikirim", "Menunggu kirim", false]
-              ].map(([title, body, active], index) => (
-                <div className={active ? "active" : ""} key={title}><span>{index + 1}</span><strong>{title}</strong><small>{body}</small></div>
-              ))}
-            </div>
           </div>
 
           <div className="followupFormGrid">
-            <label>Status Tindak Lanjut <em>*</em>
+            <label><span className="followupFieldLabel">Status Tindak Lanjut <em>*</em></span>
               <select defaultValue="Sedang Diproses" required>
                 <option>Sedang Diproses</option>
                 <option>Selesai</option>
               </select>
             </label>
-            <label>Tanggal Tindak Lanjut <em>*</em>
+            <label><span className="followupFieldLabel">Tanggal Tindak Lanjut <em>*</em></span>
               <input type="date" required />
             </label>
-            <label className="wide">Ringkasan Tindak Lanjut <em>*</em>
+            <label className="wide"><span className="followupFieldLabel">Ringkasan Tindak Lanjut <em>*</em></span>
               <input placeholder="Contoh: Koordinasi dengan jurusan terkait dan peninjauan kebutuhan praktik" required />
             </label>
-            <label className="wide">Uraian Hasil / Catatan Pelaksanaan <em>*</em>
+            <label className="wide"><span className="followupFieldLabel">Uraian Hasil / Catatan Pelaksanaan <em>*</em></span>
               <textarea rows={4} placeholder="Jelaskan hasil pelaksanaan tindak lanjut, progres, kendala, dan rencana selanjutnya..." required />
             </label>
-            <label>Pihak yang Dikoordinasikan
+            <label className="followupCoordinationField"><span className="followupFieldLabel">Pihak yang Dikoordinasikan</span>
               <input placeholder="Contoh: Wakil Ketua I, Kepala Jurusan Teknik Sipil" />
             </label>
             <div className="followupUploadBox">
               <strong>Upload Dokumen Pendukung / Hasil</strong>
-              <UploadDropzone accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" formats="PDF, DOCX, JPG, PNG. Maksimal 10 MB." />
+              <UploadDropzone accept=".pdf,application/pdf" formats="PDF Maksimal 10 MB" />
             </div>
           </div>
 
           <label className="followupCheck">
-            <input type="checkbox" defaultChecked required />
+            <input type="checkbox" required />
             <span>Saya menyatakan tindak lanjut telah dikerjakan sesuai instruksi pimpinan.</span>
           </label>
 
           <div className="followupSubmitBar">
             <button type="button" className="softBtn" onClick={() => setFollowupDraft(null)}>Batal</button>
-            <button type="button" className="softBtn" onClick={() => setConfirm({ title: "Draft tersimpan", body: `Draft tindak lanjut untuk ${followupDraft.id} tersimpan sementara.` })}>Simpan Draft</button>
             <button type="submit" className="primaryBtn"><LineIcon name="send" /> Kirim Tindak Lanjut</button>
           </div>
         </form>

@@ -11345,76 +11345,7 @@ td {
 }
 
 .followupFormTitle {
-  display: grid;
-  grid-template-columns: minmax(0, 270px) minmax(0, 1fr);
-  align-items: start;
-  gap: 20px;
-}
-
-.followupStepper {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  position: relative;
-}
-
-.followupStepper::before {
-  content: "";
-  position: absolute;
-  top: 13px;
-  left: 12%;
-  right: 12%;
-  height: 2px;
-  background: #a9c0f4;
-}
-
-.followupStepper div {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-  color: #51649d;
-  background: #ffffff;
-}
-
-.followupStepper span {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #97a9d9;
-  border-radius: 999px;
-  color: #51649d;
-  background: #ffffff;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.followupStepper .active span {
-  border-color: #0054f4;
-  color: #ffffff;
-  background: #0054f4;
-}
-
-.followupStepper strong,
-.followupStepper small {
   display: block;
-}
-
-.followupStepper strong {
-  color: #11185f;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.followupStepper small {
-  margin-top: 4px;
-  color: #6a73a6;
-  font-size: 11px;
-  font-weight: 700;
 }
 
 .followupFormGrid {
@@ -11431,6 +11362,13 @@ td {
   color: #11185f;
   font-size: 12px;
   font-weight: 900;
+}
+
+.followupFieldLabel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  width: fit-content;
 }
 
 .followupFormGrid em {
@@ -11462,21 +11400,42 @@ td {
   grid-column: 1 / -1;
 }
 
+.followupCoordinationField {
+  align-self: start;
+}
+
+.followupCoordinationField input {
+  margin-top: -2px;
+}
+
 .followupUploadBox .uploadDropzone {
   min-height: 78px;
   border-radius: 8px;
   border-color: #cbd9f3;
+  padding-bottom: 22px;
 }
 
 .followupUploadBox .uploadDropzone span {
   width: 34px;
   height: 34px;
-  margin-bottom: 0;
+  margin-bottom: 8px;
 }
 
 .followupUploadBox .uploadDropzone svg {
   width: 22px;
   height: 22px;
+}
+
+.followupUploadBox .uploadDropzone b {
+  margin-bottom: 0;
+}
+
+.followupUploadBox .uploadDropzone small {
+  position: absolute;
+  grid-column: 1 / -1;
+  right: 14px;
+  bottom: 10px;
+  text-align: right;
 }
 
 .followupCheck {
@@ -11496,7 +11455,7 @@ td {
 
 .followupSubmitBar {
   display: grid;
-  grid-template-columns: 140px 160px minmax(190px, 240px);
+  grid-template-columns: 140px minmax(190px, 240px);
   justify-content: end;
   gap: 18px;
   margin-top: 8px;
