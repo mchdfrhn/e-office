@@ -1341,10 +1341,10 @@ function Dashboard({ config, role, setView }) {
               ["mail", "Disposisi baru dari Kepala Bagian", "Surat Permohonan - AJ/2025/05/00127", "10 menit lalu", "orange"],
               ["check", "Ajuan surat disetujui", "Surat Izin Penelitian - AJ/2025/05/00128", "1 jam lalu", "green"],
               ["doc", "Ajuan surat sedang diproses", "Surat Tugas - AJ/2025/05/00127", "2 jam lalu", "purple"]
-            ].map(([icon, title, body, time, tone]) => (
+            ].map(([, title, body, time, tone]) => (
               <div className="dashNotice" key={title}>
-                <span className={`noticeIcon ${tone}`}>{iconSymbol(icon)}</span>
-                <div><strong>{title}</strong><small>{body}</small></div>
+                <span className={`noticeIcon ${tone}`}><LineIcon name="bell" /></span>
+                <div className="noticeText"><strong>{title}</strong><small>{body}</small><time>{time}</time></div>
                 <time>{time}</time><b />
               </div>
             ))}
@@ -1447,10 +1447,10 @@ function OperatorDashboard({ setView }) {
         <article className="dashPanel notificationsPanel">
           <PanelHeader title="Notifikasi Operator" action="Lihat semua" onClick={() => setView("Arsip")} />
           <div className="dashNoticeList">
-            {notices.map(([icon, title, body, time, tone]) => (
+            {notices.map(([, title, body, time, tone]) => (
               <div className="dashNotice" key={title}>
-                <span className={`noticeIcon ${tone}`}>{iconSymbol(icon)}</span>
-                <div><strong>{title}</strong><small>{body}</small></div>
+                <span className={`noticeIcon ${tone}`}><LineIcon name="bell" /></span>
+                <div className="noticeText"><strong>{title}</strong><small>{body}</small><time>{time}</time></div>
                 <time>{time}</time><b />
               </div>
             ))}
@@ -1556,10 +1556,10 @@ function PimpinanDashboard({ setView, ajuanRequests = [] }) {
         <article className="dashPanel notificationsPanel">
           <PanelHeader title="Agenda Pimpinan" action="Disposisi" onClick={() => setView("Disposisi")} />
           <div className="dashNoticeList">
-            {agenda.map(([title, body, icon], index) => (
+            {agenda.map(([title, body], index) => (
               <div className="dashNotice" key={title}>
-                <span className={`noticeIcon ${index === 0 ? "orange" : index === 1 ? "green" : "purple"}`}>{iconSymbol(icon)}</span>
-                <div><strong>{title}</strong><small>{body}</small></div>
+                <span className={`noticeIcon ${index === 0 ? "orange" : index === 1 ? "green" : "purple"}`}><LineIcon name="bell" /></span>
+                <div className="noticeText"><strong>{title}</strong><small>{body}</small><time>Hari ini</time></div>
                 <time>Hari ini</time><b />
               </div>
             ))}

@@ -1681,52 +1681,93 @@ textarea:focus {
 
 .dashNoticeList {
   display: grid;
-  gap: 25px;
+  gap: 14px;
 }
 
 .dashNotice {
+  position: relative;
   display: grid;
-  grid-template-columns: 54px 1fr auto 12px;
-  align-items: center;
-  gap: 16px;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-height: 68px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  color: #282C70;
+  background: #ffffff;
 }
 
 .noticeIcon {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
-  font-size: 24px;
-  font-weight: 600;
+  border-radius: 12px;
+  color: #0C61F1;
+  background: #f0f6ff;
 }
 
-.noticeIcon.orange { color: #f26f2a; background: #fff0e9; }
-.noticeIcon.green { color: #19b77d; background: #e9f8f0; }
-.noticeIcon.purple { color: #0036E2; background: #f0ebff; }
+.noticeIcon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.9;
+}
+
+.noticeIcon.orange,
+.noticeIcon.green,
+.noticeIcon.purple {
+  color: #0C61F1;
+  background: #edf5ff;
+}
+
+.dashNotice:nth-child(-n + 2) {
+  background: #eaf3ff;
+}
+
+.dashNotice:nth-child(-n + 2)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 11px;
+  width: 3px;
+  border-radius: 999px;
+  background: #2d45ff;
+}
 
 .dashNotice strong,
-.dashNotice small {
+.dashNotice small,
+.dashNotice .noticeText time {
   display: block;
 }
 
 .dashNotice strong {
-  color: #10204a;
+  color: #282C70;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.22;
 }
 
-.dashNotice small,
-.dashNotice time {
+.dashNotice small {
+  margin-top: 2px;
+  color: #282C70;
+  font-size: 14px;
+  line-height: 1.22;
+}
+
+.dashNotice .noticeText time {
+  margin-top: 4px;
   color: #5A5F99;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.dashNotice > time {
+  display: none;
 }
 
 .dashNotice b {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #0C61F1;
+  display: none;
 }
 
 .chartLegend {
