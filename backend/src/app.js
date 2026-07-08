@@ -3,11 +3,13 @@ import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import { config } from "./config.js";
+import { archivesRouter } from "./routes/archives.js";
 import { auditLogsRouter } from "./routes/audit-logs.js";
 import { authRouter } from "./routes/auth.js";
 import { backupsRouter } from "./routes/backups.js";
 import { healthRouter } from "./routes/health.js";
 import { metaRouter } from "./routes/meta.js";
+import { reportsRouter } from "./routes/reports.js";
 import { usersRouter } from "./routes/users.js";
 
 export function createApp() {
@@ -24,6 +26,8 @@ export function createApp() {
   app.use("/api/users", usersRouter);
   app.use("/api/audit-logs", auditLogsRouter);
   app.use("/api/backups", backupsRouter);
+  app.use("/api/archives", archivesRouter);
+  app.use("/api/reports", reportsRouter);
 
   app.use((_request, response) => {
     response.status(404).json({ message: "Data tidak ditemukan." });

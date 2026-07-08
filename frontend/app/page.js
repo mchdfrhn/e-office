@@ -1884,26 +1884,93 @@ function PimpinanDispositionCreate({ onBack, setConfirm, sourceDetail = null }) 
 }
 
 function ArchiveHome({ setConfirm }) {
-  const [archiveFilter, setArchiveFilter] = useState(null);
-  const archiveSummary = [
-    ["Total Arsip", "217", "Semua dokumen otomatis", "folder", "blue"],
-    ["Ajuan Selesai", "86", "Masuk dari approval", "check", "green"],
-    ["Surat Masuk", "74", "Masuk setelah selesai", "mail", "purple"],
-    ["Disposisi", "32", "Tindak lanjut selesai", "clipboard", "orange"]
-  ];
-  const archiveRows = [
-    ["AJ/2025/05/00128", "Ajuan Surat", "Surat Izin Penelitian", "16 Mei 2025", "Otomatis", "Disetujui"],
-    ["SM/109/V/2026", "Surat Masuk", "Permintaan data layanan", "15 Mei 2025", "Otomatis", "Selesai"],
-    ["SK/2026/018", "Surat Keluar", "Pembaruan SOP arsip", "15 Mei 2025", "Otomatis", "Dikirim"],
-    ["DSP/2026/020", "Disposisi", "Telaah dan laporkan", "14 Mei 2025", "Otomatis", "Selesai"],
-    ["AJ/2025/05/00124", "Ajuan Surat", "Surat Keterangan Aktif", "14 Mei 2025", "Otomatis", "Disetujui"]
-  ];
-  const archiveFilterMap = {
-    "Ajuan Selesai": "Ajuan Surat",
-    "Surat Masuk": "Surat Masuk",
-    Disposisi: "Disposisi"
+  const [archives, setArchives] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [sourceType, setSourceType] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [summary, setSummary] = useState({ total: 0, ajuan: 0, incoming: 0, disposition: 0 });
+
+  const loadArchives = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await api.getArchives({
+        page,
+        perPage: 10,
+        search,
+        source_type: sourceType
+      });
+      setArchives(result.data || []);
+      setTotalPages(Math.ceil((result.total || 0) / 10) || 1);
+      if (result.summary) {
+        setSummary(result.summary);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, sourceType]);
+
+  useEffect(() => {
+    loadArchives();
+  }, [loadArchives]);
+
+  const handleSync = () => {
+    setConfirm({
+      title: "Sinkronkan arsip otomatis?",
+      body: "Sistem akan mengambil data surat/ajuan/disposisi yang sudah selesai untuk masuk arsip.",
+      onConfirm: async () => {
+        try {
+          const result = await api.syncArchives();
+          setConfirm({
+            title: "Sinkronisasi Berhasil",
+            body: `${result.count} dokumen baru berhasil diarsipkan.`,
+          });
+          loadArchives();
+        } catch (err) {
+          setConfirm({
+            title: "Sinkronisasi Gagal",
+            body: err.message || "Gagal menyinkronkan arsip.",
+          });
+        }
+      }
+    });
   };
-  const filteredArchiveRows = archiveFilter ? archiveRows.filter((row) => row[1] === archiveFilterMap[archiveFilter]) : archiveRows;
+
+  const getSourceLabel = (type) => {
+    const map = {
+      letter_request: "Ajuan Surat",
+      incoming_letter: "Surat Masuk",
+      outgoing_letter: "Surat Keluar",
+      disposition: "Disposisi"
+    };
+    return map[type] || type;
+  };
+
+  const getCardActive = (label) => {
+    if (label === "Total Arsip" && sourceType === "") return "active";
+    if (label === "Ajuan Selesai" && sourceType === "letter_request") return "active";
+    if (label === "Surat Masuk" && sourceType === "incoming_letter") return "active";
+    if (label === "Disposisi" && sourceType === "disposition") return "active";
+    return "";
+  };
+
+  const handleCardClick = (label) => {
+    setPage(1);
+    if (label === "Total Arsip") setSourceType("");
+    else if (label === "Ajuan Selesai") setSourceType("letter_request");
+    else if (label === "Surat Masuk") setSourceType("incoming_letter");
+    else if (label === "Disposisi") setSourceType("disposition");
+  };
+
+  const archiveSummary = [
+    ["Total Arsip", String(summary.total), "Semua dokumen otomatis", "folder", "blue"],
+    ["Ajuan Selesai", String(summary.ajuan), "Masuk dari approval", "check", "green"],
+    ["Surat Masuk", String(summary.incoming), "Masuk setelah selesai", "mail", "purple"],
+    ["Disposisi", String(summary.disposition), "Tindak lanjut selesai", "clipboard", "orange"]
+  ];
 
   return (
     <section className="archivePage">
@@ -1912,7 +1979,7 @@ function ArchiveHome({ setConfirm }) {
           <h1>Arsip Digital</h1>
           <p>Arsip dibuat otomatis dari surat dan ajuan yang sudah selesai, tanpa upload dokumen ulang.</p>
         </div>
-        <button className="newAjuanBtn" onClick={() => setConfirm({ title: "Sinkronkan arsip otomatis?", body: "Sistem akan mengambil data surat/ajuan/disposisi yang sudah selesai untuk masuk arsip." })}>
+        <button className="newAjuanBtn" onClick={handleSync}>
           <span><LineIcon name="refresh" /></span>
           Sinkron Arsip
         </button>
@@ -1920,7 +1987,13 @@ function ArchiveHome({ setConfirm }) {
 
       <section className="ajuanStatusGrid">
         {archiveSummary.map(([label, value, meta, icon, tone]) => (
-          <button type="button" className={`ajuanStatusCard clickable ${tone}`} key={label} onClick={() => setArchiveFilter(label === "Total Arsip" ? null : label)} aria-label={`Filter arsip ${label}`}>
+          <button
+            type="button"
+            className={`ajuanStatusCard clickable ${tone} ${getCardActive(label)}`}
+            key={label}
+            onClick={() => handleCardClick(label)}
+            aria-label={`Filter arsip ${label}`}
+          >
             <span className="icon3d">{iconSymbol(icon)}</span>
             <div><small>{label}</small><strong>{value}</strong><p>{meta}</p></div>
           </button>
@@ -1929,24 +2002,89 @@ function ArchiveHome({ setConfirm }) {
 
       <article className="ajuanHistory">
         <div className="panelHeader">
-          <h3>{archiveFilter ? `Daftar Arsip - ${archiveFilter}` : "Daftar Arsip Otomatis"}</h3>
-          <button onClick={() => setArchiveFilter(null)}>Semua arsip <span aria-hidden="true">-&gt;</span></button>
+          <h3>Daftar Arsip Digital</h3>
+          <button onClick={() => { setSourceType(""); setSearch(""); setPage(1); }}>Semua arsip <span aria-hidden="true">-&gt;</span></button>
         </div>
         <div className="archiveNotice">
           <LineIcon name="info" />
           <span>Dokumen masuk arsip otomatis ketika status proses menjadi <strong>Disetujui</strong>, <strong>Dikirim</strong>, atau <strong>Selesai</strong>. Upload hanya opsional untuk lampiran pendukung.</span>
         </div>
-        <table className="dashboardTable ajuanHistoryTable archiveTable">
-          <thead><tr><th>Nomor Surat</th><th>Sumber</th><th>Perihal</th><th>Tanggal Arsip</th><th>Metode</th><th>Status</th><th>Aksi</th></tr></thead>
-          <tbody>
-            {filteredArchiveRows.map((row) => (
-              <tr key={row[0]}>
-                <td>{row[0]}</td><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td><td><span className="autoBadge">{row[4]}</span></td><td><Status text={row[5]} /></td>
-                <td><button className="viewBtn" aria-label={`Lihat ${row[0]}`}><LineIcon name="eye" /></button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+        <div className="toolbar" style={{ marginBottom: "1rem" }}>
+          <input
+            value={search}
+            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+            placeholder="Cari nomor surat, perihal, atau status..."
+          />
+        </div>
+
+        {loading ? (
+          <div className="loadingContainer"><p>Memuat data arsip...</p></div>
+        ) : (
+          <>
+            <div className="tableScroll">
+              <table className="dashboardTable ajuanHistoryTable archiveTable">
+                <thead>
+                  <tr>
+                    <th>Nomor Surat</th>
+                    <th>Sumber</th>
+                    <th>Perihal</th>
+                    <th>Tanggal Arsip</th>
+                    <th>Metode</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {archives.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" style={{ textAlign: "center", padding: "2rem" }}>Tidak ada data arsip.</td>
+                    </tr>
+                  ) : (
+                    archives.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.archive_number}</td>
+                        <td>{getSourceLabel(row.source_type)}</td>
+                        <td>{row.subject}</td>
+                        <td>
+                          {row.archived_at
+                            ? new Date(row.archived_at).toLocaleDateString("id-ID", {
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric"
+                              })
+                            : "-"}
+                        </td>
+                        <td><span className="autoBadge">Otomatis</span></td>
+                        <td><Status text={row.status} /></td>
+                        <td>
+                          <button
+                            className="viewBtn"
+                            aria-label={`Lihat ${row.archive_number}`}
+                            onClick={() =>
+                              setConfirm({
+                                title: "Detail Arsip",
+                                body: `Nomor: ${row.archive_number}\nSumber: ${getSourceLabel(row.source_type)}\nPerihal: ${row.subject}\nTanggal: ${new Date(row.archived_at).toLocaleString("id-ID")}\nStatus: ${row.status}`
+                              })
+                            }
+                          >
+                            <LineIcon name="eye" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="pagination" style={{ marginTop: "1rem" }}>
+              <button className="ghostBtn" disabled={page === 1} onClick={() => setPage(page - 1)}>Sebelumnya</button>
+              <span>Halaman {page} dari {totalPages}</span>
+              <button className="ghostBtn" disabled={page === totalPages} onClick={() => setPage(page + 1)}>Berikutnya</button>
+            </div>
+          </>
+        )}
       </article>
     </section>
   );
@@ -3810,40 +3948,53 @@ function createSimplePdf(title, lines) {
   return pdf;
 }
 
-function buildReportData(filters) {
-  const sourceRows = {
-    "Surat Masuk": rows["Surat Masuk"].map(([agenda, nomor, pengirim, perihal, status]) => [agenda, nomor, pengirim, perihal, status]),
-    "Surat Keluar": rows["Surat Keluar"].map(([nomor, jenis, tujuan, perihal, status]) => [nomor, jenis, tujuan, perihal, status]),
-    "Ajuan Surat": rows["Ajuan Surat"].map(([nomor, jenis, perihal, pengaju, status]) => [nomor, jenis, pengaju, perihal, status]),
-    Disposisi: rows.Disposisi.map(([id, nomor, tujuan, instruksi, status]) => [id, nomor, tujuan, instruksi, status])
-  };
-  const heads = {
-    "Surat Masuk": ["Agenda", "Nomor Surat", "Pengirim", "Perihal", "Status"],
-    "Surat Keluar": ["Nomor", "Jenis", "Tujuan", "Perihal", "Status"],
-    "Ajuan Surat": ["Nomor", "Jenis", "Pengaju", "Perihal", "Status"],
-    Disposisi: ["ID", "Nomor Surat", "Tujuan", "Instruksi", "Status"]
-  };
-  const selectedRows = sourceRows[filters.type] || sourceRows["Surat Masuk"];
-  const filteredRows = filters.status === "Semua Status"
-    ? selectedRows
-    : selectedRows.filter((row) => row[row.length - 1] === filters.status);
-  return { heads: heads[filters.type] || heads["Surat Masuk"], rows: filteredRows };
-}
-
 function Reports({ setConfirm }) {
   const [filters, setFilters] = useState({
     start: "2026-05-01",
-    end: "2026-05-04",
+    end: "2026-06-30",
     type: "Surat Masuk",
     status: "Semua Status"
   });
-  const reportData = buildReportData(filters);
+  const [reportData, setReportData] = useState({ heads: [], rows: [] });
+  const [loading, setLoading] = useState(false);
+
+  const loadReport = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await api.getReports({
+        start: filters.start,
+        end: filters.end,
+        type: filters.type,
+        status: filters.status
+      });
+      const heads = {
+        "Surat Masuk": ["Agenda", "Nomor Surat", "Pengirim", "Perihal", "Status"],
+        "Surat Keluar": ["Nomor", "Jenis", "Tujuan", "Perihal", "Status"],
+        "Ajuan Surat": ["Nomor", "Jenis", "Pengaju", "Perihal", "Status"],
+        Disposisi: ["ID", "Nomor Surat", "Tujuan", "Instruksi", "Status"]
+      };
+      setReportData({
+        heads: heads[filters.type] || heads["Surat Masuk"],
+        rows: result.rows || []
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    loadReport();
+  }, [loadReport]);
+
   const total = reportData.rows.length;
   const completed = reportData.rows.filter((row) => ["Selesai", "Disetujui", "Dikirim", "Didisposisikan"].includes(row[row.length - 1])).length;
-  const inProgress = reportData.rows.filter((row) => ["Diproses", "Diteruskan", "Menunggu Approval"].includes(row[row.length - 1])).length;
+  const inProgress = reportData.rows.filter((row) => ["Diproses", "Diteruskan", "Menunggu Approval", "Diregistrasi", "Ditindaklanjuti", "Diterima"].includes(row[row.length - 1])).length;
   const rejected = reportData.rows.filter((row) => ["Ditolak", "Dikembalikan"].includes(row[row.length - 1])).length;
   const updateFilter = (key) => (event) => setFilters((current) => ({ ...current, [key]: event.target.value }));
   const filenameBase = `laporan-${filters.type.toLowerCase().replaceAll(" ", "-")}-${filters.start}-${filters.end}`;
+
   const exportExcel = () => {
     const tableRows = [
       reportData.heads,
@@ -3852,6 +4003,7 @@ function Reports({ setConfirm }) {
     const html = `<html><head><meta charset="utf-8" /></head><body><h2>Laporan Operasional</h2><p>Periode: ${escapeHtml(filters.start)} s/d ${escapeHtml(filters.end)}</p><p>Jenis: ${escapeHtml(filters.type)} | Status: ${escapeHtml(filters.status)}</p><table border="1">${tableRows}</table></body></html>`;
     downloadBlob(`${filenameBase}.xls`, html, "application/vnd.ms-excel;charset=utf-8");
   };
+
   const exportPdf = () => {
     const lines = [
       `Periode: ${filters.start} s/d ${filters.end}`,
@@ -3870,14 +4022,76 @@ function Reports({ setConfirm }) {
 
   return (
     <section className="tableShell">
-      <div className="rowBetween"><h3>Laporan Operasional</h3><div className="actions"><button className="softBtn" onClick={exportPdf}>Export PDF</button><button className="softBtn" onClick={exportExcel}>Export Excel</button></div></div>
+      <div className="rowBetween">
+        <h3>Laporan Operasional</h3>
+        <div className="actions">
+          <button className="softBtn" onClick={exportPdf}>Export PDF</button>
+          <button className="softBtn" onClick={exportExcel}>Export Excel</button>
+        </div>
+      </div>
       <div className="formGrid">
         <label>Periode Mulai<input type="date" value={filters.start} onChange={updateFilter("start")} /></label>
         <label>Periode Selesai<input type="date" value={filters.end} onChange={updateFilter("end")} /></label>
-        <label>Jenis Laporan<select value={filters.type} onChange={updateFilter("type")}><option>Surat Masuk</option><option>Surat Keluar</option><option>Ajuan Surat</option><option>Disposisi</option></select></label>
-        <label>Status<select value={filters.status} onChange={updateFilter("status")}><option>Semua Status</option><option>Diproses</option><option>Diteruskan</option><option>Menunggu Approval</option><option>Disetujui</option><option>Dikirim</option><option>Selesai</option><option>Ditolak</option></select></label>
+        <label>Jenis Laporan</label>
+        <select value={filters.type} onChange={updateFilter("type")}>
+          <option>Surat Masuk</option>
+          <option>Surat Keluar</option>
+          <option>Ajuan Surat</option>
+          <option>Disposisi</option>
+        </select>
+        <label>Status</label>
+        <select value={filters.status} onChange={updateFilter("status")}>
+          <option>Semua Status</option>
+          <option>Diproses</option>
+          <option>Diteruskan</option>
+          <option>Menunggu Approval</option>
+          <option>Disetujui</option>
+          <option>Dikirim</option>
+          <option>Selesai</option>
+          <option>Ditolak</option>
+        </select>
       </div>
-      <div className="statsGrid compact"><article className="statCard"><span>Total Dokumen</span><strong>{total}</strong></article><article className="statCard"><span>Selesai</span><strong>{completed}</strong></article><article className="statCard"><span>Diproses</span><strong>{inProgress}</strong></article><article className="statCard"><span>Ditolak</span><strong>{rejected}</strong></article></div>
+      <div className="statsGrid compact" style={{ marginBottom: "1.5rem" }}>
+        <article className="statCard"><span>Total Dokumen</span><strong>{total}</strong></article>
+        <article className="statCard"><span>Selesai</span><strong>{completed}</strong></article>
+        <article className="statCard"><span>Diproses</span><strong>{inProgress}</strong></article>
+        <article className="statCard"><span>Ditolak</span><strong>{rejected}</strong></article>
+      </div>
+
+      {loading ? (
+        <div className="loadingContainer"><p>Memuat laporan...</p></div>
+      ) : (
+        <div className="tableScroll">
+          <table className="dashboardTable ajuanHistoryTable reportsTable">
+            <thead>
+              <tr>
+                {reportData.heads.map((h, i) => (
+                  <th key={i}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {reportData.rows.length === 0 ? (
+                <tr>
+                  <td colSpan={reportData.heads.length || 1} style={{ textAlign: "center", padding: "2rem" }}>
+                    Tidak ada data ditemukan untuk filter ini.
+                  </td>
+                </tr>
+              ) : (
+                reportData.rows.map((row, index) => (
+                  <tr key={index}>
+                    {row.map((cell, idx) => (
+                      <td key={idx}>
+                        {idx === row.length - 1 ? <Status text={cell} /> : cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }
