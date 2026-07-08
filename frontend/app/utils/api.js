@@ -221,5 +221,33 @@ export const api = {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+  },
+
+  // Archives
+  async getArchives({ page = 1, perPage = 20, search = "", source_type = "" } = {}) {
+    const params = new URLSearchParams({
+      page: String(page),
+      perPage: String(perPage),
+      search,
+      source_type
+    });
+    return request(`/archives?${params.toString()}`);
+  },
+
+  async syncArchives() {
+    return request("/archives/sync", {
+      method: "POST",
+    });
+  },
+
+  // Reports
+  async getReports({ start = "", end = "", type = "", status = "" } = {}) {
+    const params = new URLSearchParams({
+      start,
+      end,
+      type,
+      status
+    });
+    return request(`/reports?${params.toString()}`);
   }
 };
