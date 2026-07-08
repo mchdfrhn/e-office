@@ -8360,6 +8360,21 @@ td {
   }
 }
 
+.operatorWorkTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.operatorWorkTable th,
+.operatorWorkTable td {
+  padding: 13px 6px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  vertical-align: middle;
+}
+
 .operatorWorkTable th:nth-child(1),
 .operatorWorkTable td:nth-child(1) {
   width: 18%;
@@ -8367,12 +8382,12 @@ td {
 
 .operatorWorkTable th:nth-child(2),
 .operatorWorkTable td:nth-child(2) {
-  width: 18%;
+  width: 17%;
 }
 
 .operatorWorkTable th:nth-child(3),
 .operatorWorkTable td:nth-child(3) {
-  width: 16%;
+  width: 15%;
 }
 
 .operatorWorkTable th:nth-child(4),
@@ -8382,23 +8397,32 @@ td {
 
 .operatorWorkTable th:nth-child(5),
 .operatorWorkTable td:nth-child(5) {
-  width: 17%;
+  width: 18%;
   text-align: left;
 }
 
 .operatorWorkTable th:nth-child(6),
 .operatorWorkTable td:nth-child(6) {
-  width: 58px;
+  width: 46px;
+  min-width: 46px;
   text-align: center;
 }
 
 .operatorWorkTable .status {
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 26px;
+  line-height: 1.15;
+  white-space: normal;
+  text-align: center;
 }
 
 .operatorWorkTable .viewBtn {
   display: inline-grid;
   place-items: center;
+  flex: 0 0 auto;
 }
 
 .pimpinanReviewTable th:nth-child(1),
