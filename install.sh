@@ -7,10 +7,13 @@ set -e
 
 echo "Installing all dependencies..."
 
-cd "$(dirname "$0")/frontend"
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+cd "$SCRIPT_DIR/frontend"
 npm install
 
-cd "$(dirname "$0")/backend"
+cd "$SCRIPT_DIR/backend"
 npm install
 
 echo "All dependencies installed!"

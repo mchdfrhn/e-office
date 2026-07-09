@@ -91,7 +91,7 @@ check_status() {
 
 # Function to install dependencies
 install_deps() {
-    echo "Installing dependencies..."
+    echo "Installing frontend dependencies..."
     cd "$SCRIPT_DIR/frontend"
     npm install
     echo "Frontend dependencies installed!"

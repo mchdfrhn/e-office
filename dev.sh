@@ -7,16 +7,19 @@ set -e
 
 echo "Starting development servers..."
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Start backend in background
 echo "Starting backend..."
-cd "$(dirname "$0")/backend"
+cd "$SCRIPT_DIR/backend"
 npm run dev &
 BACKEND_PID=$!
 echo "Backend started with PID: $BACKEND_PID"
 
 # Start frontend in background
 echo "Starting frontend..."
-cd "$(dirname "$0")/frontend"
+cd "$SCRIPT_DIR/frontend"
 npm run dev &
 FRONTEND_PID=$!
 echo "Frontend started with PID: $FRONTEND_PID"
