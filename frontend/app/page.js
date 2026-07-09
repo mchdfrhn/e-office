@@ -437,7 +437,7 @@ const roleConfig = {
   },
   Administrator: {
     name: "Admin Sistem",
-    nav: ["Dashboard", "Pengguna", "Arsip", "Laporan", "Audit Trail", "Backup"],
+    nav: ["Dashboard", "Pengguna", "Backup"],
     stats: [["Pengguna", "48"], ["Role", "5"], ["Audit Hari Ini", "129"], ["Backup", "03:00"]]
   },
   Pegawai: {
@@ -2804,11 +2804,201 @@ function UploadDropzone({ label, name, accept, formats }) {
   );
 }
 
+function OperatorIncomingDetail({ row, onBack, setConfirm }) {
+  const detail = getOperatorIncomingDetail(row);
+  const steps = getOperatorIncomingFlow(detail.status);
+  const [previewDocument, setPreviewDocument] = useState(null);
+  const handlePreviewDocument = async () => {
+    try {
+      const attachment = detail.attachment || createLetterDocumentAttachment({
+        title: "Surat Masuk",
+        filename: detail.dokumen,
+        number: detail.nomorSurat,
+        kind: "Surat Masuk",
+        subject: detail.perihal,
+        partyLabel: "Pengirim",
+        party: detail.pengirim,
+        status: detail.status,
+        summary: detail.perihal
+      });
+      setPreviewDocument(await hydrateAuthorizedAttachment(attachment));
+    } catch (error) {
+      setConfirm({ title: "Preview dokumen gagal", body: error.message || "Dokumen belum dapat dibuka." });
+    }
+  };
+
+  const handleDownloadDocument = async () => {
+    try {
+      const attachment = detail.attachment || createLetterDocumentAttachment({
+        title: "Surat Masuk",
+        filename: detail.dokumen,
+        number: detail.nomorSurat,
+        kind: "Surat Masuk",
+        subject: detail.perihal,
+        partyLabel: "Pengirim",
+        party: detail.pengirim,
+        status: detail.status,
+        summary: detail.perihal
+      });
+      downloadAttachment(await hydrateAuthorizedAttachment(attachment), {
+        judul: "Surat Masuk",
+        nomor: detail.nomorSurat,
+        keterangan: detail.perihal
+      });
+    } catch (error) {
+      setConfirm({ title: "Unduh dokumen gagal", body: error.message || "Dokumen belum dapat diunduh." });
+    }
+  };
+
+  return (
+    <section className="operatorIncomingDetailPage">
+      <header className="operatorIncomingDetailHeader">
+        <button type="button" className="operatorIncomingBackLink" onClick={onBack}><LineIcon name="arrowLeft" /> Kembali ke Daftar Surat Masuk</button>
+        <div className="operatorIncomingTitleRow">
+          <div>
+            <h1>Detail Surat Masuk</h1>
+            <p>Lihat informasi surat, dokumen, dan alur proses surat masuk.</p>
+          </div>
+        </div>
+      </header>
+
+      <section className="operatorIncomingDetailGrid">
+        <article className="operatorIncomingCard operatorIncomingInfoCard">
+          <h2><LineIcon name="doc" /> Informasi Surat</h2>
+          <dl>
+            {[
+              ["Nomor Agenda", detail.agenda],
+              ["Tanggal Masuk", detail.tanggalMasuk],
+              ["Nomor Surat", detail.nomorSurat],
+              ["Pengirim", detail.pengirim],
+              ["Perihal", detail.perihal],
+              ["Tujuan/Bagian", detail.tujuan],
+              ["Sifat", detail.sifat],
+              ["Lampiran", detail.lampiranLabel]
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </article>
+
+        <section className="operatorIncomingRightColumn">
+          <article className="operatorIncomingCard operatorIncomingDocumentCard">
+            <h2><LineIcon name="doc" /> Preview Dokumen</h2>
+            <div className="operatorIncomingDocumentItem">
+              <span className="operatorIncomingPdfBadge">PDF</span>
+              <div>
+                <strong>{detail.dokumen}</strong>
+                <small>PDF - {detail.ukuranDokumen}</small>
+              </div>
+              <button type="button" onClick={handlePreviewDocument}><LineIcon name="eye" /> Lihat</button>
+              <button type="button" aria-label={`Unduh ${detail.dokumen}`} onClick={handleDownloadDocument}><LineIcon name="download" /></button>
+            </div>
+          </article>
+
+          <article className="operatorIncomingCard operatorIncomingFlowCard">
+            <h2><LineIcon name="send" /> Alur Proses Surat</h2>
+            <div className="operatorIncomingStepList">
+              {steps.map((step, index) => (
+                <div className={step.tone} key={step.title}>
+                  <span>{index + 1}</span>
+                  <div>
+                    <strong>{step.title}</strong>
+                    {step.description && <small>{step.description}</small>}
+                    {step.branch && (
+                      <div className="operatorIncomingBranch">
+                        <em>Ya</em>
+                        <i>Tidak</i>
+                        <b>Surat tertunda</b>
+                      </div>
+                    )}
+                  </div>
+                  {step.label && <b>{step.label}</b>}
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <button type="button" className="operatorIncomingBackBtn" onClick={onBack}><LineIcon name="arrowLeft" /> Kembali</button>
+      {previewDocument && (
+        <AttachmentPreviewModal
+          attachment={previewDocument}
+          detail={{
+            judul: "Surat Masuk",
+            nomor: detail.nomorSurat,
+            pihak: detail.pengirim,
+            keterangan: detail.perihal
+          }}
+          onClose={() => setPreviewDocument(null)}
+        />
+      )}
+    </section>
+  );
+}
+
+function getOperatorIncomingDetail(row) {
+  const [agenda, pengirim, perihal, tanggalMasuk, tujuan, status] = row;
+  const normalizedAgenda = String(agenda || "");
+  const lastNumber = normalizedAgenda.match(/\d+/g)?.at(-1) || "124";
+  const fallbackNumber = normalizedAgenda.startsWith("SM/")
+    ? normalizedAgenda.replace("/05/", "/VI/")
+    : `SM/${String(lastNumber).padStart(3, "0")}/VI/2026`;
+  const detailByAgenda = {
+    "SM/2025/05/0124": {
+      nomorSurat: "123/SMKNII/VI/2026",
+      tanggalMasuk: "9 Juni 2026",
+      pengirim: "SMKN 1 BOJONGPICUNG",
+      perihal: "Permohonan Tempat Praktik Kerja Lapangan",
+      tujuan: "Ketua, Waket I, Waket II, Waket III",
+      sifat: "Biasa",
+      dokumen: "Surat Permohonan.pdf",
+      ukuranDokumen: "245 KB",
+      status: "Diteruskan"
+    }
+  };
+  const mapped = detailByAgenda[agenda] || {};
+  return {
+    agenda,
+    tanggalMasuk: mapped.tanggalMasuk || tanggalMasuk || "-",
+    nomorSurat: mapped.nomorSurat || row.detail?.letterNumber || fallbackNumber,
+    pengirim: mapped.pengirim || pengirim || "-",
+    perihal: mapped.perihal || perihal || "-",
+    tujuan: mapped.tujuan || tujuan || "-",
+    sifat: mapped.sifat || "Biasa",
+    lampiranLabel: row.detail?.lampiranLabel || "1 berkas",
+    dokumen: row.detail?.documentName || mapped.dokumen || "Dokumen_Surat_Masuk.pdf",
+    ukuranDokumen: row.detail?.documentSize || mapped.ukuranDokumen || "512 KB",
+    status: mapped.status || status || "Diregistrasi",
+    attachment: row.detail?.attachment || null
+  };
+}
+
+function getOperatorIncomingFlow(status) {
+  const value = String(status || "").toLowerCase();
+  const forwarded = ["diteruskan", "didisposisikan", "diproses", "selesai"].some((item) => value.includes(item));
+  const disposition = ["didisposisikan", "diproses", "selesai"].some((item) => value.includes(item));
+  const archived = value.includes("selesai");
+  return [
+    { title: "Input surat masuk", description: "Surat diterima dan dicatat operator", label: "Selesai", tone: "done" },
+    { title: "Dikirim ke pimpinan", description: "Surat diteruskan untuk pemeriksaan", label: "Selesai", tone: "done" },
+    { title: "Pimpinan memeriksa surat masuk", description: "Menunggu tinjauan pimpinan", label: forwarded ? "Saat ini" : "Belum", tone: forwarded ? "current" : "pending" },
+    { title: "Disposisi ke bagian terkait", description: "Belum diproses", label: disposition ? (archived ? "Selesai" : "Saat ini") : "Belum", tone: disposition ? (archived ? "done" : "current") : "pending" },
+    { title: "Tindak lanjut bagian terkait", description: "Menunggu tindak lanjut dari unit terkait", label: archived ? "Selesai" : "Belum", tone: archived ? "done" : "pending" },
+    { title: "Pengarsipan surat fisik", description: "Menunggu proses arsip fisik", label: archived ? "Selesai" : "Belum", tone: archived ? "done" : "pending" },
+    { title: "Selesai", description: "Proses surat masuk telah selesai", label: archived ? "Selesai" : "Belum", tone: archived ? "done" : "pending" }
+  ];
+}
+
 function IncomingLetterForm({ role, setConfirm }) {
   const [emailSyncing, setEmailSyncing] = useState(false);
   const [processingEmailId, setProcessingEmailId] = useState("");
   const [savingIncoming, setSavingIncoming] = useState("");
   const [incomingMode, setIncomingMode] = useState("dashboard");
+  const [selectedIncomingRow, setSelectedIncomingRow] = useState(null);
   const demoIncomingRows = [
     ["SM/2025/05/0124", "PT Cipta Karya", "Permohonan Kerja Sama", "22 Mei 2025", "Bagian Akademik", "Baru"],
     ["SM/2025/05/0123", "Dinas PU Jakarta", "Undangan Rapat Koordinasi", "21 Mei 2025", "Pimpinan", "Diteruskan"],
@@ -3057,6 +3247,19 @@ function IncomingLetterForm({ role, setConfirm }) {
     });
   }
 
+  if (incomingMode === "detail" && selectedIncomingRow) {
+    return (
+      <OperatorIncomingDetail
+        row={selectedIncomingRow}
+        onBack={() => {
+          setSelectedIncomingRow(null);
+          setIncomingMode("dashboard");
+        }}
+        setConfirm={setConfirm}
+      />
+    );
+  }
+
   if (incomingMode === "dashboard") {
     const totalIncoming = operatorIncomingRows.length;
     const forwardedIncoming = operatorIncomingRows.filter((row) => row[5] === "Diteruskan").length;
@@ -3122,7 +3325,9 @@ function IncomingLetterForm({ role, setConfirm }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {operatorIncomingRows.map(([agenda, sender, subject, date, target, status]) => (
+                  {operatorIncomingRows.map((row) => {
+                    const [agenda, sender, subject, date, target, status] = row;
+                    return (
                     <tr key={agenda}>
                       <td>{agenda}</td>
                       <td>{sender}</td>
@@ -3131,12 +3336,20 @@ function IncomingLetterForm({ role, setConfirm }) {
                       <td>{target}</td>
                       <td><Status text={status} /></td>
                       <td>
-                        <button type="button" className="iconBtn" aria-label={`Lihat ${agenda}`} onClick={() => setConfirm({ title: "Detail surat masuk", body: `${agenda} dari ${sender}: ${subject}` })}>
+                        <button
+                          type="button"
+                          className="iconBtn"
+                          aria-label={`Lihat ${agenda}`}
+                          onClick={() => {
+                            setSelectedIncomingRow(row);
+                            setIncomingMode("detail");
+                          }}
+                        >
                           <LineIcon name="eye" />
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  );})}
                 </tbody>
               </table>
             </div>
@@ -3541,7 +3754,29 @@ function mapIncomingLetterToOperatorRow(item) {
   const receivedDate = formatDateOnly(item.received_date || item.receivedDate || item.created_at || item.createdAt);
   const target = item.forwarded_to_name || item.forwardedToName || (item.leaderTargets?.length ? item.leaderTargets.join(", ") : "Pimpinan");
   const status = incomingStatusLabel(item.status);
-  return [agenda, sender, subject, receivedDate, target, status];
+  const row = [agenda, sender, subject, receivedDate, target, status];
+  const document = item.document;
+  const documentName = document?.original_name || document?.name || "";
+  if (documentName) {
+    row.detail = {
+      letterNumber: item.letter_number || item.letterNumber || "",
+      tanggalMasuk: receivedDate,
+      sifat: item.priority || item.sifat || "Biasa",
+      lampiranLabel: "1 berkas",
+      documentName,
+      documentSize: formatFileSize(document.file_size_bytes || document.size || 1),
+      attachment: [
+        documentName,
+        formatFileSize(document.file_size_bytes || document.size || 1),
+        document.uploaded_at ? `Diunggah operator ${formatDateTime(document.uploaded_at)}` : "Diunggah operator saat input surat masuk",
+        document.dataUrl || "",
+        document.mime_type || document.type || "application/pdf",
+        document.storageKey || "",
+        document.download_path || ""
+      ]
+    };
+  }
+  return row;
 }
 
 function getIncomingLetterDetail(row) {
@@ -5641,6 +5876,190 @@ function PanelHeader({ title, action, onClick }) {
   return <div className="panelHeader"><h3>{title}</h3>{action && <button onClick={onClick}>{action} <span aria-hidden="true">-&gt;</span></button>}</div>;
 }
 
+function AdminUserManagement({
+  rows,
+  query,
+  setQuery,
+  apiNotice,
+  onCreate,
+  onUserDelete,
+  onUserResetPassword,
+  setConfirm
+}) {
+  const [roleFilter, setRoleFilter] = useState("Semua Role");
+  const [unitFilter, setUnitFilter] = useState("Semua Unit Kerja");
+  const [statusFilter, setStatusFilter] = useState("Semua Status");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const displayRows = useMemo(() => {
+    const hasSuperAdmin = rows.some((row) => String(row[1] || "").toLowerCase() === "super admin");
+    return hasSuperAdmin ? rows : [["USR-000", "Super Admin", "Administrator", "Pusat", "Aktif"], ...rows];
+  }, [rows]);
+  const roleOptions = ["Semua Role", ...new Set(displayRows.map((row) => row[2]).filter(Boolean))];
+  const unitOptions = ["Semua Unit Kerja", ...new Set(displayRows.map((row) => row[3]).filter(Boolean))];
+  const statusOptions = ["Semua Status", ...new Set(displayRows.map((row) => row[4]).filter(Boolean))];
+  const filteredRows = displayRows.filter((row) => {
+    const email = userEmail(row);
+    const searchable = [...row, email].join(" ").toLowerCase();
+    return (
+      searchable.includes(query.toLowerCase()) &&
+      (roleFilter === "Semua Role" || row[2] === roleFilter) &&
+      (unitFilter === "Semua Unit Kerja" || row[3] === unitFilter) &&
+      (statusFilter === "Semua Status" || row[4] === statusFilter)
+    );
+  });
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const visibleRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+  const start = filteredRows.length ? (page - 1) * pageSize + 1 : 0;
+  const end = Math.min(page * pageSize, filteredRows.length);
+  const activeCount = displayRows.filter((row) => String(row[4]).toLowerCase() === "aktif").length;
+  const stats = [
+    ["Total Pengguna", String(displayRows.length), "Semua akun terdaftar", "users", "blue"],
+    ["Administrator", String(displayRows.filter((row) => row[2] === "Administrator").length), "Akun dengan akses admin", "shield", "purple"],
+    ["Operator", String(displayRows.filter((row) => row[2] === "Operator").length), "Akun operator sistem", "lock", "green"],
+    ["Pengguna Aktif", String(activeCount), "Akun aktif saat ini", "users", "orange"]
+  ];
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, roleFilter, unitFilter, statusFilter]);
+
+  return (
+    <section className="adminUsersPage">
+      <header className="adminUsersHeader">
+        <h1>Manajemen Pengguna</h1>
+        <p>Kelola akun pengguna, peran, dan status akses sistem.</p>
+        {apiNotice && <small className="fieldError">{apiNotice}</small>}
+      </header>
+
+      <section className="adminUsersStats">
+        {stats.map(([label, value, helper, icon, tone]) => (
+          <article className={`adminUsersStat ${tone}`} key={label}>
+            <span><LineIcon name={icon} /></span>
+            <div>
+              <small>{label}</small>
+              <strong>{value}</strong>
+              <p>{helper}</p>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <article className="adminUsersPanel">
+        <div className="adminUsersToolbar">
+          <label className="adminUsersSearch">
+            <LineIcon name="search" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama, email, atau ID pengguna..." />
+          </label>
+          <label className="adminUsersSelect">
+            <LineIcon name="shield" />
+            <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+              {roleOptions.map((option) => <option key={option}>{option}</option>)}
+            </select>
+          </label>
+          <label className="adminUsersSelect">
+            <LineIcon name="bank" />
+            <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)}>
+              {unitOptions.map((option) => <option key={option}>{option}</option>)}
+            </select>
+          </label>
+          <label className="adminUsersSelect">
+            <LineIcon name="filter" />
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              {statusOptions.map((option) => <option key={option}>{option}</option>)}
+            </select>
+          </label>
+          <button type="button" className="adminUsersAddBtn" onClick={onCreate}><LineIcon name="plus" /> Tambah Pengguna</button>
+        </div>
+
+        <div className="adminUsersTableWrap">
+          <table className="adminUsersTable">
+            <thead>
+              <tr><th>No</th><th>Nama</th><th>Email</th><th>Role</th><th>Unit Kerja</th><th>Status</th><th>Aksi</th></tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((row, index) => (
+                <tr key={row[0]}>
+                  <td>{start + index}</td>
+                  <td><strong>{row[1]}</strong></td>
+                  <td>{userEmail(row)}</td>
+                  <td><span className={`adminUsersBadge role ${roleTone(row[2])}`}>{row[2]}</span></td>
+                  <td>{row[3] || "-"}</td>
+                  <td><span className={`adminUsersBadge status ${adminUserStatusTone(row[4])}`}>{row[4]}</span></td>
+                  <td>
+                    <div className="adminUsersActions">
+                      <button
+                        type="button"
+                        className="edit"
+                        aria-label={`Reset password ${row[1]}`}
+                        onClick={() => setConfirm({
+                          title: "Reset password?",
+                          body: `Password awal baru untuk ${row[1]} akan dibuat dan aktivitas tercatat di audit trail.`,
+                          onConfirm: () => onUserResetPassword?.(row[0], row[1])
+                        })}
+                      >
+                        <LineIcon name="edit" />
+                      </button>
+                      <button
+                        type="button"
+                        className="delete"
+                        aria-label={`Hapus ${row[1]}`}
+                        onClick={() => setConfirm({
+                          title: "Hapus pengguna?",
+                          body: `${row[1]} akan dinonaktifkan menggunakan soft delete dan tidak dapat login.`,
+                          onConfirm: () => onUserDelete?.(row[0], row[1])
+                        })}
+                      >
+                        <LineIcon name="trash" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {visibleRows.length === 0 && (
+                <tr><td colSpan={7} className="adminUsersEmpty">Tidak ada pengguna yang cocok dengan filter.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <footer className="adminUsersFooter">
+          <span>Menampilkan {start} dari {end} dari {filteredRows.length} data</span>
+          <div className="adminUsersPager">
+            <button type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>&lt;</button>
+            {Array.from({ length: Math.min(totalPages, 4) }, (_, index) => index + 1).map((item) => (
+              <button type="button" className={page === item ? "active" : ""} key={item} onClick={() => setPage(item)}>{item}</button>
+            ))}
+            <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>&gt;</button>
+            <select defaultValue="10"><option>10 / halaman</option><option>20 / halaman</option></select>
+          </div>
+        </footer>
+      </article>
+    </section>
+  );
+}
+
+function userEmail(row) {
+  if (row[5] && String(row[5]).includes("@")) return row[5];
+  const slug = String(row[1] || "pengguna").trim().toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/(^\.|\.$)/g, "");
+  return `${slug || "pengguna"}@sttpu.ac.id`;
+}
+
+function roleTone(role) {
+  const value = String(role || "").toLowerCase();
+  if (value.includes("admin")) return "admin";
+  if (value.includes("operator")) return "operator";
+  if (value.includes("pimpinan")) return "leader";
+  return "user";
+}
+
+function adminUserStatusTone(status) {
+  const value = String(status || "").toLowerCase();
+  if (value.includes("non")) return "inactive";
+  if (value.includes("menunggu")) return "pending";
+  return "active";
+}
+
 function Sparkline({ tone }) {
   return (
     <svg className={`sparkline ${tone}`} viewBox="0 0 92 36" aria-hidden="true">
@@ -5709,8 +6128,10 @@ function LineIcon({ name }) {
     settings: <><circle cx="12" cy="12" r="3" {...common} /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.04.04a2 2 0 1 1-2.83 2.83l-.04-.04A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6V20a2 2 0 1 1-4 0v-.06a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.04.04a2 2 0 1 1-2.83-2.83l.04-.04A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1H4a2 2 0 1 1 0-4h.06a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.04-.04a2 2 0 1 1 2.83-2.83l.04.04A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6V4a2 2 0 1 1 4 0v.06a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.04-.04a2 2 0 1 1 2.83 2.83l-.04.04A1.7 1.7 0 0 0 19.4 9c.2.34.4.66.6 1H20a2 2 0 1 1 0 4h-.06a1.7 1.7 0 0 0-.54 1Z" {...common} /></>,
     logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" {...common} /><path d="M16 17l5-5-5-5" {...common} /><path d="M21 12H9" {...common} /></>,
     search: <><circle cx="11" cy="11" r="7" {...common} /><path d="m20 20-4-4" {...common} /></>,
+    filter: <><path d="M4 5h16" {...common} /><path d="M7 12h10" {...common} /><path d="M10 19h4" {...common} /></>,
     x: <><circle cx="12" cy="12" r="9" {...common} /><path d="m9 9 6 6M15 9l-6 6" {...common} /></>,
     edit: <><path d="M12 20h9" {...common} /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z" {...common} /></>,
+    trash: <><path d="M3 6h18" {...common} /><path d="M8 6V4h8v2" {...common} /><path d="M19 6l-1 15H6L5 6" {...common} /><path d="M10 11v6M14 11v6" {...common} /></>,
     arrowLeft: <><path d="M19 12H5" {...common} /><path d="m12 19-7-7 7-7" {...common} /></>,
     bank: <><path d="M4 10h16" {...common} /><path d="M5 10 12 5l7 5" {...common} /><path d="M6 10v8M10 10v8M14 10v8M18 10v8" {...common} /><path d="M4 18h16M3 21h18" {...common} /></>
     ,
@@ -6048,6 +6469,21 @@ function ModuleView({
           const saved = await onCreateUser(user);
           if (saved !== false) setOpenForms((current) => ({ ...current, [view]: false }));
         }}
+      />
+    );
+  }
+
+  if (view === "Pengguna") {
+    return (
+      <AdminUserManagement
+        rows={sourceRows}
+        query={query}
+        setQuery={setQuery}
+        apiNotice={apiNotice}
+        onCreate={handleAddData}
+        onUserDelete={onUserDelete}
+        onUserResetPassword={onUserResetPassword}
+        setConfirm={setConfirm}
       />
     );
   }
