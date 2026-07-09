@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
+    "dev": "npm run migrate && node --watch src/server.js",
+    "start": "npm run migrate && node src/server.js",
     "migrate": "node src/migrate.js",
     "db:check": "node src/db-check.js",
     "db:start": "node scripts/start-embedded-postgres.js"
