@@ -405,7 +405,9 @@ function mapApiUserToRow(user) {
     user.full_name || "-",
     user.role || user.role_name || "-",
     user.unit || "-",
-    toTitleCase(user.status)
+    toTitleCase(user.status),
+    user.email || "",
+    { id: user.id, username: user.username }
   ];
 }
 
@@ -1062,34 +1064,29 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
 
   const handleDeleteUser = async (id, name) => {
     if (isDummyToken()) {
-      setUserRows((current) => current.map((row) => (
-        row[0] === id ? [row[0], row[1], row[2], row[3], "Nonaktif"] : row
-      )));
-      setConfirm({ title: "User dummy dinonaktifkan", body: `${name} telah dinonaktifkan di daftar lokal.` });
+      setUserRows((current) => current.filter((row) => userActionId(row) !== id));
       return;
     }
 
     try {
       await apiFetch(`/users/${id}`, { method: "DELETE" });
+      setUserRows((current) => current.filter((row) => userActionId(row) !== id));
       await loadUsers();
-      setConfirm({ title: "User terhapus", body: `${name} telah berhasil dinonaktifkan.` });
     } catch (error) {
       setConfirm({ title: "Gagal menghapus", body: error.message });
     }
   };
 
-  const handleResetPassword = async (id, name) => {
+  const handleResetPassword = async (id, name, password = "Reset123!") => {
     if (isDummyToken()) {
-      setConfirm({ title: "Password dummy direset", body: `Password untuk ${name} disetel ke Reset123! pada mode lokal.` });
       return;
     }
 
     try {
       await apiFetch(`/users/${id}/reset-password`, {
         method: "POST",
-        body: JSON.stringify({ password: "Reset123!" })
+        body: JSON.stringify({ password })
       });
-      setConfirm({ title: "Password direset", body: `Password untuk ${name} telah berhasil direset ke 'Reset123!'.` });
     } catch (error) {
       setConfirm({ title: "Gagal mereset", body: error.message });
     }
@@ -1241,7 +1238,7 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
           </div>
         </header>
         <section className="content">
-          {currentView === "Dashboard" && (role === "Operator" ? <OperatorDashboard setView={setView} /> : role === "Pimpinan" ? <PimpinanDashboard setView={setView} ajuanRequests={ajuanRequests} /> : role === "Administrator" ? <AdminDashboard setView={setView} userRows={userRows} auditRows={auditRows} apiNotice={apiNotice} /> : <Dashboard config={config} role={role} setView={setView} />)}
+          {currentView === "Dashboard" && (role === "Operator" ? <OperatorDashboard setView={setView} ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} /> : role === "Pimpinan" ? <PimpinanDashboard setView={setView} ajuanRequests={ajuanRequests} /> : role === "Administrator" ? <AdminDashboard setView={setView} userRows={userRows} auditRows={auditRows} apiNotice={apiNotice} /> : <Dashboard config={config} role={role} setView={setView} />)}
           {currentView === "Pengaturan Profil" && <ProfileSettings config={config} profile={currentProfile} role={role} setConfirm={setConfirm} />}
           {currentView === "Notifikasi" && <Notifications />}
           {currentView === "Laporan" && <Reports setConfirm={setConfirm} />}
@@ -1389,7 +1386,60 @@ function Dashboard({ config, role, setView }) {
   );
 }
 
-function OperatorDashboard({ setView }) {
+function buildOperatorNotices(ajuanRequests = [], outgoingLetters = []) {
+  const incomingRows = getActiveIncomingLetters(readLocalJson(LOCAL_INCOMING_KEY, []));
+  const waitingAjuan = ajuanRequests
+    .filter((item) => getAjuanWorkflowStatus(item) === "Menunggu Approval")
+    .slice(0, 1)
+    .map((item) => ({
+      icon: "inbox",
+      title: "Ajuan menunggu approval pimpinan",
+      body: `${item.nomor} - ${item.judul || item.jenis || "Ajuan surat"}`,
+      time: "Baru diperbarui",
+      tone: "orange",
+      target: "Ajuan Masuk"
+    }));
+  const numberingAjuan = ajuanRequests
+    .filter((item) => getAjuanWorkflowStatus(item) === "Disetujui")
+    .slice(0, 1)
+    .map((item) => ({
+      icon: "clock",
+      title: "Ajuan siap diberi nomor surat",
+      body: `${item.nomor} - ${item.judul || item.jenis || "Ajuan surat"}`,
+      time: "Perlu proses",
+      tone: "green",
+      target: "Ajuan Masuk"
+    }));
+  const unforwardedIncoming = incomingRows.filter((item) => {
+    const status = String(item.status || "").toLowerCase();
+    return ["baru", "diregistrasi", "belum diproses"].includes(status);
+  });
+  const incomingNotices = unforwardedIncoming.length > 0
+    ? [{
+        icon: "mail",
+        title: "Surat masuk belum diteruskan",
+        body: `${unforwardedIncoming.length} surat masuk perlu diproses operator`,
+        time: "Perlu dicek",
+        tone: "purple",
+        target: "Surat Masuk"
+      }]
+    : [];
+  const outgoingWaiting = outgoingLetters
+    .filter((letter) => ["Draft", "Ditolak", "Disetujui", "Menunggu Approval"].includes(letter.status))
+    .slice(0, 1)
+    .map((letter) => ({
+      icon: "send",
+      title: letter.status === "Disetujui" ? "Surat keluar siap dikirim" : "Surat keluar perlu diproses",
+      body: `${letter.nomor} - ${letter.perihal || letter.jenis}`,
+      time: "Perlu tindak lanjut",
+      tone: "blue",
+      target: "Surat Keluar"
+    }));
+
+  return [...waitingAjuan, ...numberingAjuan, ...incomingNotices, ...outgoingWaiting].slice(0, 4);
+}
+
+function OperatorDashboard({ setView, ajuanRequests = [], outgoingLetters = [] }) {
   const cards = [
     ["Ajuan Masuk", "27", "Monitoring ajuan", "inbox", "blue", "Ajuan Masuk"],
     ["Surat Masuk", "124", "Email dan manual", "mail", "purple", "Surat Masuk"],
@@ -1402,11 +1452,7 @@ function OperatorDashboard({ setView }) {
     ["AJ/2025/05/00129", "Surat Permohonan", "Andi Wijaya", "Menunggu input nomor surat", "Disetujui"],
     ["AJ/2025/05/00128", "Surat Keterangan", "Sari Pegawai", "Nomor surat sudah tersinkron", "Selesai"]
   ];
-  const notices = [
-    ["inbox", "Ajuan menunggu approval pimpinan", "AJ/2025/05/00131 - Surat Izin Penelitian", "8 menit lalu", "orange"],
-    ["mail", "Email institusi belum diproses", "sekretariat@sttpu.ac.id memiliki 5 email surat masuk", "22 menit lalu", "purple"],
-    ["send", "Draft surat keluar siap dicek", "SK/2025/05/00076 perlu nomor surat", "1 jam lalu", "green"]
-  ];
+  const notices = buildOperatorNotices(ajuanRequests, outgoingLetters);
 
   return (
     <section className="dashboardPage">
@@ -1445,15 +1491,22 @@ function OperatorDashboard({ setView }) {
         </article>
 
         <article className="dashPanel notificationsPanel">
-          <PanelHeader title="Notifikasi Operator" action="Lihat semua" onClick={() => setView("Arsip")} />
+          <PanelHeader title="Notifikasi Operator" action="Lihat semua" onClick={() => setView("Notifikasi")} />
           <div className="dashNoticeList">
-            {notices.map(([, title, body, time, tone]) => (
+            {notices.map(({ icon, title, body, time, tone, target }) => (
               <div className="dashNotice" key={title}>
-                <span className={`noticeIcon ${tone}`}><LineIcon name="bell" /></span>
+                <span className={`noticeIcon ${tone}`}><LineIcon name={icon} /></span>
                 <div className="noticeText"><strong>{title}</strong><small>{body}</small><time>{time}</time></div>
-                <time>{time}</time><b />
+                <time>{time}</time><button type="button" onClick={() => setView(target)} aria-label={`Buka ${target}`} />
               </div>
             ))}
+            {notices.length === 0 && (
+              <div className="dashNotice">
+                <span className="noticeIcon green"><LineIcon name="check" /></span>
+                <div className="noticeText"><strong>Tidak ada notifikasi baru</strong><small>Semua pekerjaan operator sudah mengikuti data terbaru.</small><time>Saat ini</time></div>
+                <time>Saat ini</time><b />
+              </div>
+            )}
           </div>
         </article>
 
@@ -2923,7 +2976,6 @@ function OperatorIncomingDetail({ row, onBack, setConfirm }) {
         </section>
       </section>
 
-      <button type="button" className="operatorIncomingBackBtn" onClick={onBack}><LineIcon name="arrowLeft" /> Kembali</button>
       {previewDocument && (
         <AttachmentPreviewModal
           attachment={previewDocument}
@@ -3007,6 +3059,8 @@ function IncomingLetterForm({ role, setConfirm }) {
   ];
   const [operatorIncomingRows, setOperatorIncomingRows] = useState(demoIncomingRows);
   const [operatorIncomingLoading, setOperatorIncomingLoading] = useState(false);
+  const [operatorIncomingPage, setOperatorIncomingPage] = useState(1);
+  const [operatorIncomingPageSize, setOperatorIncomingPageSize] = useState(5);
   const [emailRows, setEmailRows] = useState([
     {
       id: "email-demo-1",
@@ -3054,6 +3108,16 @@ function IncomingLetterForm({ role, setConfirm }) {
       activeGuard.current = false;
     };
   }, [role, incomingMode]);
+
+  const operatorIncomingTotalPages = Math.max(1, Math.ceil(operatorIncomingRows.length / operatorIncomingPageSize));
+
+  useEffect(() => {
+    setOperatorIncomingPage(1);
+  }, [operatorIncomingPageSize, operatorIncomingRows.length]);
+
+  useEffect(() => {
+    if (operatorIncomingPage > operatorIncomingTotalPages) setOperatorIncomingPage(operatorIncomingTotalPages);
+  }, [operatorIncomingPage, operatorIncomingTotalPages]);
 
   if (role === "Pimpinan") return <PimpinanIncomingReview setConfirm={setConfirm} />;
 
@@ -3270,6 +3334,11 @@ function IncomingLetterForm({ role, setConfirm }) {
       ["Sudah Diteruskan", String(forwardedIncoming), "send", "green"],
       ["Hari Ini", String(operatorIncomingRows.filter((row) => row[3] === formatDateOnly(new Date().toISOString())).length), "calendar", "purple"]
     ];
+    const visibleOperatorIncomingRows = operatorIncomingRows.slice(
+      (operatorIncomingPage - 1) * operatorIncomingPageSize,
+      operatorIncomingPage * operatorIncomingPageSize
+    );
+    const operatorIncomingPageItems = getPaginationItems(operatorIncomingPage, operatorIncomingTotalPages);
     const guideItems = [
       "Catat nomor agenda dan tanggal masuk.",
       "Isi asal surat dan perihal dengan lengkap.",
@@ -3325,7 +3394,7 @@ function IncomingLetterForm({ role, setConfirm }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {operatorIncomingRows.map((row) => {
+                  {visibleOperatorIncomingRows.map((row) => {
                     const [agenda, sender, subject, date, target, status] = row;
                     return (
                     <tr key={agenda}>
@@ -3352,6 +3421,41 @@ function IncomingLetterForm({ role, setConfirm }) {
                   );})}
                 </tbody>
               </table>
+            </div>
+            <div className="archivePagination operatorIncomingListFooter" aria-label="Navigasi halaman surat masuk">
+              <div className="archivePageControls">
+                <button type="button" className="archivePageNav" disabled={operatorIncomingPage <= 1} onClick={() => setOperatorIncomingPage((current) => Math.max(1, current - 1))} aria-label="Halaman sebelumnya">&lsaquo;</button>
+                {operatorIncomingPageItems.map((item, index) => (
+                  item === "ellipsis"
+                    ? <span className="archivePageEllipsis" key={`incoming-ellipsis-${index}`}>...</span>
+                    : (
+                      <button
+                        type="button"
+                        className={item === operatorIncomingPage ? "archivePageNumber active" : "archivePageNumber"}
+                        key={item}
+                        onClick={() => setOperatorIncomingPage(item)}
+                        aria-label={`Halaman ${item}`}
+                        aria-current={item === operatorIncomingPage ? "page" : undefined}
+                      >
+                        {item}
+                      </button>
+                    )
+                ))}
+                <button type="button" className="archivePageNav" disabled={operatorIncomingPage >= operatorIncomingTotalPages} onClick={() => setOperatorIncomingPage((current) => Math.min(operatorIncomingTotalPages, current + 1))} aria-label="Halaman berikutnya">&rsaquo;</button>
+              </div>
+              <div className="archivePaginationRight">
+                <label className="archivePageSize">
+                  Tampilkan
+                  <select value={operatorIncomingPageSize} onChange={(event) => setOperatorIncomingPageSize(Number(event.target.value))}>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                  </select>
+                </label>
+                <div className="archivePageInfo">
+                  <span>dari {operatorIncomingRows.length} data</span>
+                </div>
+              </div>
             </div>
           </article>
 
@@ -5878,36 +5982,19 @@ function PanelHeader({ title, action, onClick }) {
 
 function AdminUserManagement({
   rows,
-  query,
-  setQuery,
   apiNotice,
   onCreate,
   onUserDelete,
   onUserResetPassword,
   setConfirm
 }) {
-  const [roleFilter, setRoleFilter] = useState("Semua Role");
-  const [unitFilter, setUnitFilter] = useState("Semua Unit Kerja");
-  const [statusFilter, setStatusFilter] = useState("Semua Status");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const displayRows = useMemo(() => {
     const hasSuperAdmin = rows.some((row) => String(row[1] || "").toLowerCase() === "super admin");
     return hasSuperAdmin ? rows : [["USR-000", "Super Admin", "Administrator", "Pusat", "Aktif"], ...rows];
   }, [rows]);
-  const roleOptions = ["Semua Role", ...new Set(displayRows.map((row) => row[2]).filter(Boolean))];
-  const unitOptions = ["Semua Unit Kerja", ...new Set(displayRows.map((row) => row[3]).filter(Boolean))];
-  const statusOptions = ["Semua Status", ...new Set(displayRows.map((row) => row[4]).filter(Boolean))];
-  const filteredRows = displayRows.filter((row) => {
-    const email = userEmail(row);
-    const searchable = [...row, email].join(" ").toLowerCase();
-    return (
-      searchable.includes(query.toLowerCase()) &&
-      (roleFilter === "Semua Role" || row[2] === roleFilter) &&
-      (unitFilter === "Semua Unit Kerja" || row[3] === unitFilter) &&
-      (statusFilter === "Semua Status" || row[4] === statusFilter)
-    );
-  });
+  const filteredRows = displayRows;
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const visibleRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
   const start = filteredRows.length ? (page - 1) * pageSize + 1 : 0;
@@ -5922,7 +6009,7 @@ function AdminUserManagement({
 
   useEffect(() => {
     setPage(1);
-  }, [query, roleFilter, unitFilter, statusFilter]);
+  }, [displayRows.length]);
 
   return (
     <section className="adminUsersPage">
@@ -5946,29 +6033,7 @@ function AdminUserManagement({
       </section>
 
       <article className="adminUsersPanel">
-        <div className="adminUsersToolbar">
-          <label className="adminUsersSearch">
-            <LineIcon name="search" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama, email, atau ID pengguna..." />
-          </label>
-          <label className="adminUsersSelect">
-            <LineIcon name="shield" />
-            <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-              {roleOptions.map((option) => <option key={option}>{option}</option>)}
-            </select>
-          </label>
-          <label className="adminUsersSelect">
-            <LineIcon name="bank" />
-            <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)}>
-              {unitOptions.map((option) => <option key={option}>{option}</option>)}
-            </select>
-          </label>
-          <label className="adminUsersSelect">
-            <LineIcon name="filter" />
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              {statusOptions.map((option) => <option key={option}>{option}</option>)}
-            </select>
-          </label>
+        <div className="adminUsersToolbar adminUsersToolbarActions">
           <button type="button" className="adminUsersAddBtn" onClick={onCreate}><LineIcon name="plus" /> Tambah Pengguna</button>
         </div>
 
@@ -5991,23 +6056,21 @@ function AdminUserManagement({
                       <button
                         type="button"
                         className="edit"
+                        disabled={isProtectedAdminUser(row)}
                         aria-label={`Reset password ${row[1]}`}
-                        onClick={() => setConfirm({
-                          title: "Reset password?",
-                          body: `Password awal baru untuk ${row[1]} akan dibuat dan aktivitas tercatat di audit trail.`,
-                          onConfirm: () => onUserResetPassword?.(row[0], row[1])
-                        })}
+                        onClick={() => onUserResetPassword?.(row)}
                       >
                         <LineIcon name="edit" />
                       </button>
                       <button
                         type="button"
                         className="delete"
+                        disabled={isProtectedAdminUser(row)}
                         aria-label={`Hapus ${row[1]}`}
                         onClick={() => setConfirm({
                           title: "Hapus pengguna?",
                           body: `${row[1]} akan dinonaktifkan menggunakan soft delete dan tidak dapat login.`,
-                          onConfirm: () => onUserDelete?.(row[0], row[1])
+                          onConfirm: () => onUserDelete?.(userActionId(row), row[1])
                         })}
                       >
                         <LineIcon name="trash" />
@@ -6017,7 +6080,7 @@ function AdminUserManagement({
                 </tr>
               ))}
               {visibleRows.length === 0 && (
-                <tr><td colSpan={7} className="adminUsersEmpty">Tidak ada pengguna yang cocok dengan filter.</td></tr>
+                <tr><td colSpan={7} className="adminUsersEmpty">Belum ada pengguna yang terdaftar.</td></tr>
               )}
             </tbody>
           </table>
@@ -6043,6 +6106,14 @@ function userEmail(row) {
   if (row[5] && String(row[5]).includes("@")) return row[5];
   const slug = String(row[1] || "pengguna").trim().toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/(^\.|\.$)/g, "");
   return `${slug || "pengguna"}@sttpu.ac.id`;
+}
+
+function userActionId(row) {
+  return row?.[6]?.id || row?.[0];
+}
+
+function isProtectedAdminUser(row) {
+  return row?.[0] === "USR-000";
 }
 
 function roleTone(role) {
@@ -6398,6 +6469,7 @@ function ModuleView({
   const [dispositionFolderFilter, setDispositionFolderFilter] = useState(null);
   const [outgoingAction, setOutgoingAction] = useState(null);
   const [auditAction, setAuditAction] = useState(null);
+  const [resetUserRow, setResetUserRow] = useState(null);
   const outgoingRows = outgoingLetters.map(outgoingLetterToRow);
   const storedDispositionRows = useMemo(() => {
     if (view !== "Disposisi") return [];
@@ -6473,6 +6545,19 @@ function ModuleView({
     );
   }
 
+  if (view === "Pengguna" && resetUserRow) {
+    return (
+      <AdminUserPasswordReset
+        row={resetUserRow}
+        onCancel={() => setResetUserRow(null)}
+        onResetPassword={async (id, name, password) => {
+          await onUserResetPassword?.(id, name, password);
+          setResetUserRow(null);
+        }}
+      />
+    );
+  }
+
   if (view === "Pengguna") {
     return (
       <AdminUserManagement
@@ -6482,7 +6567,7 @@ function ModuleView({
         apiNotice={apiNotice}
         onCreate={handleAddData}
         onUserDelete={onUserDelete}
-        onUserResetPassword={onUserResetPassword}
+        onUserResetPassword={(row) => setResetUserRow(row)}
         setConfirm={setConfirm}
       />
     );
@@ -7025,6 +7110,82 @@ function AdminUserCreate({ onCancel, onCreateUser }) {
   );
 }
 
+function AdminUserPasswordReset({ row, onCancel, onResetPassword }) {
+  const [error, setError] = useState("");
+
+  function submitReset(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const password = String(form.get("password") || "").trim();
+    const confirmPassword = String(form.get("confirmPassword") || "").trim();
+
+    if (password.length < 8) {
+      setError("Password minimal 8 karakter.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Konfirmasi password tidak sama.");
+      return;
+    }
+
+    setError("");
+    onResetPassword(userActionId(row), row[1], password);
+  }
+
+  return (
+    <section className="adminUserCreatePage">
+      <header className="dispositionCreateHeader">
+        <div>
+          <button type="button" className="backLink" onClick={onCancel}><LineIcon name="arrowLeft" /> Kembali ke Daftar Pengguna</button>
+          <h1>Reset Password Pengguna</h1>
+          <p>Ubah password akun pengguna dan simpan perubahan aksesnya.</p>
+        </div>
+      </header>
+
+      <section className="adminUserCreateGrid">
+        <form className="adminUserForm" onSubmit={submitReset}>
+          <article className="dispositionFormCard">
+            <h2><LineIcon name="shield" /> Akun Pengguna</h2>
+            <div className="adminUserFields">
+              <label>Nama Pengguna
+                <input value={row[1]} readOnly />
+              </label>
+              <label>Email
+                <input value={userEmail(row)} readOnly />
+              </label>
+              <label>Role
+                <input value={row[2]} readOnly />
+              </label>
+              <label>Status
+                <input value={row[4]} readOnly />
+              </label>
+            </div>
+          </article>
+
+          <article className="dispositionFormCard">
+            <h2><LineIcon name="lock" /> Password Baru</h2>
+            <div className="adminUserFields">
+              <label>Password Baru <span>*</span>
+                <input name="password" type="password" placeholder="Masukkan password baru" minLength={8} required />
+              </label>
+              <label>Konfirmasi Password <span>*</span>
+                <input name="confirmPassword" type="password" placeholder="Ulangi password baru" minLength={8} required />
+              </label>
+            </div>
+            {error && <small className="fieldError">{error}</small>}
+          </article>
+
+          <div className="dispositionSubmitBar">
+            <button type="button" className="ghostBtn" onClick={onCancel}>Batal</button>
+            <button type="submit" className="primaryBtn saveUserBtn"><LineIcon name="check" /> Simpan Password</button>
+          </div>
+        </form>
+
+      </section>
+    </section>
+  );
+}
+
 function AuditTrailDetail({ detail, onBack }) {
   return (
     <section className="incomingPage dispositionDetailPage">
@@ -7420,11 +7581,12 @@ function DataTable({
                       <div className="actions userActions">
                         <button
                           className="dangerSoftBtn"
+                          disabled={isProtectedAdminUser(row)}
                           onClick={() =>
                             setConfirm({
                               title: "Hapus pengguna?",
                               body: `${row[1]} akan dinonaktifkan menggunakan soft delete dan tidak dapat login.`,
-                              onConfirm: () => onUserDelete?.(row[0], row[1])
+                              onConfirm: () => onUserDelete?.(userActionId(row), row[1])
                             })
                           }
                         >
@@ -7432,11 +7594,12 @@ function DataTable({
                         </button>
                         <button
                           className="softBtn"
+                          disabled={isProtectedAdminUser(row)}
                           onClick={() =>
                             setConfirm({
                               title: "Reset password?",
                               body: `Password awal baru untuk ${row[1]} akan dibuat dan aktivitas tercatat di audit trail.`,
-                              onConfirm: () => onUserResetPassword?.(row[0], row[1])
+                              onConfirm: () => onUserResetPassword?.(userActionId(row), row[1])
                             })
                           }
                         >
@@ -9071,9 +9234,11 @@ function LoginField({ label, error, icon, action, actionLabel, actionPressed, on
 }
 
 function ConfirmModal({ confirm, setConfirm }) {
-  const confirmAction = () => {
-    confirm.onConfirm?.();
+  const [confirming, setConfirming] = useState(false);
+  const confirmAction = async () => {
+    setConfirming(true);
     setConfirm(null);
+    await confirm.onConfirm?.();
   };
 
   return (
@@ -9081,7 +9246,7 @@ function ConfirmModal({ confirm, setConfirm }) {
       <section className="modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
         <h3>{confirm.title}</h3>
         <p>{confirm.body}</p>
-        <div className="actions end"><button className="ghostBtn" onClick={() => setConfirm(null)}>Batal</button><button className="primaryBtn" onClick={confirmAction}>Ya, lanjutkan</button></div>
+        <div className="actions end"><button className="ghostBtn" disabled={confirming} onClick={() => setConfirm(null)}>Batal</button><button className="primaryBtn" disabled={confirming} onClick={confirmAction}>Ya, lanjutkan</button></div>
       </section>
     </div>
   );

@@ -644,6 +644,11 @@ textarea:focus {
   margin-bottom: 18px;
 }
 
+.adminUsersToolbarActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .adminUsersSearch,
 .adminUsersSelect {
   display: flex;
@@ -796,6 +801,11 @@ textarea:focus {
   border: 1px solid currentColor;
   border-radius: 8px;
   background: #fff;
+}
+
+.adminUsersActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .adminUsersActions svg {
@@ -2128,7 +2138,8 @@ textarea:focus {
   display: none;
 }
 
-.dashNotice b {
+.dashNotice b,
+.dashNotice > button {
   display: none;
 }
 
@@ -5662,15 +5673,22 @@ td {
   width: 32px;
   height: 32px;
   min-width: 32px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
   border-radius: 9px;
   color: #3364d8;
   background: #ffffff;
   border: 1px solid #96B3E9;
+  line-height: 0;
+  vertical-align: middle;
 }
 
 .incomingListCard .iconBtn svg {
   width: 17px;
   height: 17px;
+  display: block;
+  flex: 0 0 auto;
 }
 
 .operatorIncomingDetailPage {
@@ -9092,6 +9110,33 @@ td {
 
 .operatorOutgoingListFooter {
   margin-top: 18px;
+}
+
+.operatorIncomingListFooter {
+  min-width: 0;
+  margin-top: 18px;
+  padding: 18px 0 0;
+  border-top-color: #CFE0FA;
+}
+
+.operatorIncomingListFooter .archivePageControls {
+  gap: 10px;
+}
+
+.operatorIncomingListFooter .archivePageNav,
+.operatorIncomingListFooter .archivePageNumber {
+  width: 40px;
+  height: 40px;
+  border-color: #AFCBFF;
+}
+
+.operatorIncomingListFooter .archivePaginationRight {
+  gap: 14px;
+}
+
+.operatorIncomingListFooter .archivePageSize select {
+  min-width: 84px;
+  border-color: #AFCBFF;
 }
 
 .outgoingNumberLink {
