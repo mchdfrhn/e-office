@@ -32,5 +32,28 @@ export const config = {
     user: process.env.DB_USERNAME || "postgres",
     password: process.env.DB_PASSWORD || "postgres",
     ssl: readBoolean(process.env.DB_SSL, false) ? { rejectUnauthorized: false } : false
+  },
+  email: {
+    enabled: readBoolean(process.env.EMAIL_SYNC_ENABLED, false),
+    address: process.env.EMAIL_ADDRESS || "sekretariat@sttpu.ac.id",
+    fromName: process.env.EMAIL_FROM_NAME || "Sekretariat STTPU",
+    protocol: (process.env.EMAIL_PROTOCOL || "imap").toLowerCase(),
+    imap: {
+      host: process.env.EMAIL_IMAP_HOST || process.env.EMAIL_HOST || "",
+      port: readNumber(process.env.EMAIL_IMAP_PORT || process.env.EMAIL_PORT, 993),
+      secure: readBoolean(process.env.EMAIL_IMAP_SECURE, true),
+      user: process.env.EMAIL_USERNAME || process.env.EMAIL_USER || process.env.EMAIL_ADDRESS || "sekretariat@sttpu.ac.id",
+      password: process.env.EMAIL_PASSWORD || "",
+      mailbox: process.env.EMAIL_IMAP_MAILBOX || "INBOX"
+    },
+    smtp: {
+      host: process.env.EMAIL_SMTP_HOST || "",
+      port: readNumber(process.env.EMAIL_SMTP_PORT, 465),
+      secure: readBoolean(process.env.EMAIL_SMTP_SECURE, true),
+      user: process.env.EMAIL_USERNAME || process.env.EMAIL_USER || process.env.EMAIL_ADDRESS || "sekretariat@sttpu.ac.id",
+      password: process.env.EMAIL_PASSWORD || ""
+    },
+    syncLimit: readNumber(process.env.EMAIL_SYNC_LIMIT, 25),
+    syncSinceDays: readNumber(process.env.EMAIL_SYNC_SINCE_DAYS, 14)
   }
 };
