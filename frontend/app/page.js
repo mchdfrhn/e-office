@@ -9221,10 +9221,21 @@ function AdminBackup({ setConfirm }) {
   const fetchBackups = useCallback(async () => {
     try {
       const data = await apiFetch("/backups?perPage=10");
-      if (data && data.backups) {
-        setBackups(data.backups);
-        if (data.backups.length > 0) {
-          const successBackups = data.backups.filter(b => b.status === "success");
+      if (data && data.data) {
+        const mappedBackups = data.data.map(b => ({
+          id: b.id,
+          backup_code: b.backup_code,
+          status: b.status,
+          file_size: b.file_size_bytes,
+          notes: b.notes,
+          created_at: b.executed_at,
+          executed_at: b.executed_at,
+          created_by_name: b.executor_name,
+          filename: b.original_name
+        }));
+        setBackups(mappedBackups);
+        if (mappedBackups.length > 0) {
+          const successBackups = mappedBackups.filter(b => b.status === "success");
           if (successBackups.length > 0) {
             setLastBackup(successBackups[0]);
           }
@@ -9269,7 +9280,7 @@ function AdminBackup({ setConfirm }) {
       await fetchBackups();
       setConfirm({
         title: "Backup Selesai",
-        body: `Backup dengan ID ${res.backup?.id} berhasil dijalankan.`
+        body: `Backup dengan ID ${res.data?.id || res.backup?.id} berhasil dijalankan.`
       });
     } catch (e) {
       setConfirm({
