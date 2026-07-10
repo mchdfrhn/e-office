@@ -1808,8 +1808,8 @@ function AdminDashboard({ setView, userRows, auditRows, apiNotice }) {
         <article className="dashPanel notificationsPanel">
           <PanelHeader title="Audit Terbaru" action="Lihat semua" onClick={() => setView("Audit Trail")} />
           <div className="adminAuditList">
-            {recentAudits.map(([time, actor, module, action]) => (
-              <div className="adminAuditItem" key={`${time}-${action}`}>
+            {recentAudits.map(([time, actor, module, action, log], index) => (
+              <div className="adminAuditItem" key={log?.id || `${time}-${action}-${index}`}>
                 <span><LineIcon name="clock" /></span>
                 <div><strong>{action}</strong><small>{time} - {actor} - {module}</small></div>
               </div>
