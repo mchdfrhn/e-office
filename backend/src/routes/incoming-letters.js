@@ -114,10 +114,28 @@ incomingLettersRouter.get("/", requireAuth, requireRole("administrator", "operat
       `SELECT incoming_letters.id, agenda_number, letter_number, letter_date, received_date,
               sender, subject, summary, incoming_letters.status AS status, forwarded_at,
               leader.full_name AS forwarded_to_name,
-              registrar.full_name AS registered_by_name
+              registrar.full_name AS registered_by_name,
+              CASE WHEN document.id IS NULL THEN NULL ELSE jsonb_build_object(
+                'id', document.id,
+                'original_name', document.original_name,
+                'file_size_bytes', document.file_size_bytes,
+                'mime_type', document.mime_type,
+                'previewable', document.previewable,
+                'uploaded_at', document.created_at,
+                'download_path', '/incoming-letters/' || incoming_letters.id || '/documents/' || document.id || '/download'
+              ) END AS document
        FROM incoming_letters
        JOIN users registrar ON registrar.id = incoming_letters.registered_by
        LEFT JOIN users leader ON leader.id = incoming_letters.forwarded_to
+       LEFT JOIN LATERAL (
+         SELECT id, original_name, file_size_bytes, mime_type, previewable, created_at
+         FROM documents
+         WHERE owner_type = 'incoming_letter'
+           AND owner_id = incoming_letters.id
+           AND deleted_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) document ON true
        WHERE incoming_letters.deleted_at IS NULL
        ${roleFilter}
        ORDER BY incoming_letters.created_at DESC
@@ -211,6 +229,51 @@ incomingLettersRouter.post("/", requireAuth, requireRole("administrator", "opera
     if (error.code === "23505") {
       return response.status(409).json({ message: "Nomor agenda sudah digunakan." });
     }
+    next(error);
+  }
+});
+
+incomingLettersRouter.get("/:id/documents/:documentId/download", requireAuth, requireRole("administrator", "operator", "pimpinan"), async (request, response, next) => {
+  try {
+    const roleFilter = request.user.role_code === "pimpinan" ? "AND incoming_letters.forwarded_to = $3" : "";
+    const params = [request.params.id, request.params.documentId];
+    if (request.user.role_code === "pimpinan") params.push(request.user.id);
+
+    const result = await query(
+      `SELECT incoming_letters.id AS incoming_id,
+              incoming_letters.agenda_number,
+              documents.id AS document_id,
+              documents.original_name,
+              documents.storage_path,
+              documents.mime_type
+       FROM incoming_letters
+       JOIN documents ON documents.owner_type = 'incoming_letter'
+        AND documents.owner_id = incoming_letters.id
+       WHERE incoming_letters.id = $1
+         AND documents.id = $2
+         AND incoming_letters.deleted_at IS NULL
+         AND documents.deleted_at IS NULL
+         ${roleFilter}`,
+      params
+    );
+    const document = result.rows[0];
+    if (!document) return response.status(404).json({ message: "Dokumen surat masuk tidak ditemukan atau tidak dapat diakses." });
+
+    await writeAuditLog({
+      userId: request.user.id,
+      activity: "download_incoming_letter_document",
+      module: "incoming_letters",
+      dataId: document.incoming_id,
+      dataLabel: document.original_name,
+      metadata: { documentId: document.document_id, agendaNumber: document.agenda_number },
+      request
+    });
+
+    response.type(document.mime_type || "application/octet-stream");
+    response.download(document.storage_path, document.original_name, (error) => {
+      if (error && !response.headersSent) next(error);
+    });
+  } catch (error) {
     next(error);
   }
 });
