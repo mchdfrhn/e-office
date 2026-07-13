@@ -5846,6 +5846,124 @@ td {
   padding: 20px;
 }
 
+.operatorIncomingHistoryCard {
+  padding: 20px;
+}
+
+.operatorIncomingHistoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.operatorIncomingHistoryHeader h2 {
+  margin-bottom: 0;
+}
+
+.operatorIncomingHistoryList {
+  display: grid;
+}
+
+.operatorIncomingHistoryItem {
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px 32px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding: 18px 0;
+  border-bottom: 1px solid #E0E9FF;
+}
+
+.operatorIncomingHistoryItem:last-child {
+  border-bottom: 0;
+}
+
+.operatorIncomingHistoryItem::before {
+  content: "";
+  position: absolute;
+  top: 48px;
+  bottom: -18px;
+  left: 165px;
+  width: 2px;
+  background: #D8E7FF;
+}
+
+.operatorIncomingHistoryItem:last-child::before {
+  display: none;
+}
+
+.operatorIncomingHistoryTime strong,
+.operatorIncomingHistoryTime span {
+  display: block;
+}
+
+.operatorIncomingHistoryTime strong {
+  color: #282C70;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.operatorIncomingHistoryTime span {
+  margin-top: 4px;
+  color: #7180A8;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.operatorIncomingHistoryDot {
+  z-index: 1;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 2px solid #BFD4FF;
+  border-radius: 999px;
+  color: #0C61F1;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.operatorIncomingHistoryDot.done {
+  color: #0A7B58;
+  border-color: #32D184;
+}
+
+.operatorIncomingHistoryDot.current {
+  color: #fff;
+  border-color: #0C61F1;
+  background: #0C61F1;
+}
+
+.operatorIncomingHistoryContent strong {
+  color: #18235F;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.operatorIncomingHistoryContent p {
+  margin: 5px 0 7px;
+  color: #566895;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.operatorIncomingHistoryContent small {
+  color: #7180A8;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.operatorIncomingHistoryContent small b {
+  color: #34476F;
+}
+
+.operatorIncomingHistoryItem > .status {
+  white-space: nowrap;
+}
+
 .operatorIncomingCard h2 {
   display: flex;
   align-items: center;
@@ -6308,6 +6426,39 @@ td {
 
   .operatorIncomingStepList b {
     grid-column: 2;
+    width: fit-content;
+  }
+
+  .operatorIncomingHistoryHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .operatorIncomingHistoryItem {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .operatorIncomingHistoryItem::before {
+    left: 14px;
+  }
+
+  .operatorIncomingHistoryTime {
+    grid-column: 2;
+    grid-row: 1;
+    padding-top: 2px;
+  }
+
+  .operatorIncomingHistoryDot {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+  }
+
+  .operatorIncomingHistoryContent,
+  .operatorIncomingHistoryItem > .status {
+    grid-column: 2;
+  }
+
+  .operatorIncomingHistoryItem > .status {
     width: fit-content;
   }
 }
@@ -9766,6 +9917,38 @@ td {
   color: #0C61F1;
   background: #ffffff;
   box-shadow: none;
+}
+
+.pimpinanIncomingReviewTable .status {
+  width: max-content;
+  max-width: none;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.pimpinanIncomingReviewTable .status.new,
+.pimpinanIncomingReviewTable .status.sent {
+  color: #0C61F1;
+  background: #E7F0FF;
+}
+
+.pimpinanIncomingReviewTable .status.process,
+.pimpinanIncomingReviewTable .status.review {
+  color: #D97706;
+  background: #FFF3D6;
+}
+
+.pimpinanIncomingReviewTable .status.approval,
+.pimpinanIncomingReviewTable .status.waiting {
+  color: #7A3FE0;
+  background: #F1E7FF;
+}
+
+.pimpinanIncomingReviewTable .status.done {
+  color: #12824B;
+  background: #DCF8E7;
 }
 
 .pimpinanIncomingReviewTable th:last-child,

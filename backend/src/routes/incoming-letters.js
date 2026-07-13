@@ -113,6 +113,7 @@ incomingLettersRouter.get("/", requireAuth, requireRole("administrator", "operat
     const result = await query(
       `SELECT incoming_letters.id, agenda_number, letter_number, letter_date, received_date,
               sender, subject, summary, incoming_letters.status AS status, forwarded_at,
+              incoming_letters.created_at AS registered_at,
               leader.full_name AS forwarded_to_name,
               registrar.full_name AS registered_by_name,
               CASE WHEN document.id IS NULL THEN NULL ELSE jsonb_build_object(

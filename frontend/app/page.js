@@ -2954,6 +2954,7 @@ function UploadDropzone({ label, name, accept, formats }) {
 function OperatorIncomingDetail({ row, onBack, setConfirm }) {
   const detail = getOperatorIncomingDetail(row);
   const steps = getOperatorIncomingFlow(detail.status);
+  const history = getOperatorIncomingHistory(detail);
   const [previewDocument, setPreviewDocument] = useState(null);
   const handlePreviewDocument = async () => {
     try {
@@ -3070,6 +3071,30 @@ function OperatorIncomingDetail({ row, onBack, setConfirm }) {
         </section>
       </section>
 
+      <article className="operatorIncomingCard operatorIncomingHistoryCard">
+        <div className="operatorIncomingHistoryHeader">
+          <h2><LineIcon name="clock" /> Riwayat Surat</h2>
+          <Status text={detail.status} />
+        </div>
+        <div className="operatorIncomingHistoryList">
+          {history.map((item, index) => (
+            <div className="operatorIncomingHistoryItem" key={`${item.title}-${index}`}>
+              <div className="operatorIncomingHistoryTime">
+                <strong>{item.date}</strong>
+                <span>{item.time}</span>
+              </div>
+              <span className={`operatorIncomingHistoryDot ${item.tone}`} aria-hidden="true">{index + 1}</span>
+              <div className="operatorIncomingHistoryContent">
+                <strong>{item.title}</strong>
+                <p>{item.description}</p>
+                <small>Pelaksana: <b>{item.actor}</b></small>
+              </div>
+              <Status text={item.status} />
+            </div>
+          ))}
+        </div>
+      </article>
+
       {previewDocument && (
         <AttachmentPreviewModal
           attachment={previewDocument}
@@ -3119,8 +3144,94 @@ function getOperatorIncomingDetail(row) {
     dokumen: row.detail?.documentName || mapped.dokumen || "Dokumen_Surat_Masuk.pdf",
     ukuranDokumen: row.detail?.documentSize || mapped.ukuranDokumen || "512 KB",
     status: mapped.status || status || "Diregistrasi",
-    attachment: row.detail?.attachment || null
+    attachment: row.detail?.attachment || null,
+    registeredAt: row.detail?.registeredAt || null,
+    registeredByName: row.detail?.registeredByName || "Operator Persuratan",
+    forwardedAt: row.detail?.forwardedAt || null,
+    forwardedToName: row.detail?.forwardedToName || tujuan || "Pimpinan",
+    documentUploadedAt: row.detail?.documentUploadedAt || null,
+    summary: row.detail?.summary || perihal || "-"
   };
+}
+
+function getOperatorIncomingHistory(detail) {
+  const status = String(detail.status || "").toLowerCase();
+  const isForwarded = ["diteruskan", "didisposisikan", "ditindaklanjuti", "selesai"].some((value) => status.includes(value));
+  const isDisposed = ["didisposisikan", "ditindaklanjuti", "selesai"].some((value) => status.includes(value));
+  const isFollowedUp = ["ditindaklanjuti", "selesai"].some((value) => status.includes(value));
+  const formatMoment = (value, fallbackDate = detail.tanggalMasuk) => {
+    if (!value) return { date: fallbackDate || "-", time: "Waktu tidak tersedia" };
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return { date: String(value), time: "Waktu tidak tersedia" };
+    const parts = new Intl.DateTimeFormat("id-ID", {
+      timeZone: "Asia/Jakarta",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).formatToParts(parsed);
+    const getPart = (type) => parts.find((part) => part.type === type)?.value || "";
+    return {
+      date: `${getPart("day")} ${getPart("month")} ${getPart("year")}`.trim(),
+      time: `${getPart("hour")}.${getPart("minute")} WIB`
+    };
+  };
+  const registered = formatMoment(detail.registeredAt);
+  const uploaded = formatMoment(detail.documentUploadedAt || detail.registeredAt);
+  const forwarded = formatMoment(detail.forwardedAt || detail.registeredAt);
+  const items = [
+    {
+      ...registered,
+      title: "Surat masuk diregistrasi",
+      description: `Surat dicatat dengan nomor agenda ${detail.agenda} dan nomor surat ${detail.nomorSurat}.`,
+      actor: detail.registeredByName,
+      status: "Selesai",
+      tone: "done"
+    }
+  ];
+  if (detail.attachment) {
+    items.push({
+      ...uploaded,
+      title: "Dokumen surat diunggah",
+      description: `${detail.dokumen} (${detail.ukuranDokumen}) ditambahkan sebagai lampiran surat masuk.`,
+      actor: detail.registeredByName,
+      status: "Selesai",
+      tone: "done"
+    });
+  }
+  if (isForwarded) {
+    items.push({
+      ...forwarded,
+      title: "Surat diteruskan kepada pimpinan",
+      description: `Surat dikirim kepada ${detail.forwardedToName} untuk diperiksa dan diproses lebih lanjut.`,
+      actor: detail.registeredByName,
+      status: isDisposed || isFollowedUp ? "Selesai" : "Diteruskan",
+      tone: isDisposed || isFollowedUp ? "done" : "current"
+    });
+  }
+  if (isDisposed) {
+    items.push({
+      ...forwarded,
+      title: "Disposisi dibuat",
+      description: "Pimpinan memberikan arahan dan meneruskan surat kepada unit atau pihak terkait.",
+      actor: detail.forwardedToName || "Pimpinan",
+      status: isFollowedUp ? "Selesai" : "Didisposisikan",
+      tone: isFollowedUp ? "done" : "current"
+    });
+  }
+  if (isFollowedUp) {
+    items.push({
+      ...forwarded,
+      title: "Tindak lanjut dilaksanakan",
+      description: detail.summary || "Unit terkait telah memberikan tindak lanjut atas disposisi surat.",
+      actor: "Unit terkait",
+      status: status.includes("selesai") ? "Selesai" : "Ditindaklanjuti",
+      tone: status.includes("selesai") ? "done" : "current"
+    });
+  }
+  return items;
 }
 
 function getOperatorIncomingFlow(status) {
@@ -3946,6 +4057,7 @@ const defaultUserDispositionRows = [
 ];
 
 function mapIncomingLetterToOperatorRow(item) {
+  const id = item.id || item.incoming_letter_id || "";
   const agenda = item.agenda_number || item.agendaNumber || item.agenda || "-";
   const sender = item.sender || "Pengirim eksternal";
   const subject = item.subject || "Surat masuk eksternal";
@@ -3955,24 +4067,32 @@ function mapIncomingLetterToOperatorRow(item) {
   const row = [agenda, sender, subject, receivedDate, target, status];
   const document = item.document;
   const documentName = document?.original_name || document?.name || "";
+  row.detail = {
+    incomingId: id,
+    letterNumber: item.letter_number || item.letterNumber || "",
+    tanggalMasuk: receivedDate,
+    sifat: item.priority || item.sifat || "Biasa",
+    lampiranLabel: documentName ? "1 berkas" : "Tidak ada lampiran",
+    registeredAt: item.registered_at || item.registeredAt || item.created_at || item.createdAt || item.received_date,
+    registeredByName: item.registered_by_name || item.registeredByName || "Operator",
+    forwardedAt: item.forwarded_at || item.forwardedAt || null,
+    forwardedToName: item.forwarded_to_name || item.forwardedToName || target,
+    summary: item.summary || "",
+    documentUploadedAt: document?.uploaded_at || null,
+    documentName,
+    documentSize: documentName ? formatFileSize(document.file_size_bytes || document.size || 1) : "-",
+    attachment: null
+  };
   if (documentName) {
-    row.detail = {
-      letterNumber: item.letter_number || item.letterNumber || "",
-      tanggalMasuk: receivedDate,
-      sifat: item.priority || item.sifat || "Biasa",
-      lampiranLabel: "1 berkas",
+    row.detail.attachment = [
       documentName,
-      documentSize: formatFileSize(document.file_size_bytes || document.size || 1),
-      attachment: [
-        documentName,
-        formatFileSize(document.file_size_bytes || document.size || 1),
-        document.uploaded_at ? `Diunggah operator ${formatDateTime(document.uploaded_at)}` : "Diunggah operator saat input surat masuk",
-        document.dataUrl || "",
-        document.mime_type || document.type || "application/pdf",
-        document.storageKey || "",
-        document.download_path || ""
-      ]
-    };
+      formatFileSize(document.file_size_bytes || document.size || 1),
+      document.uploaded_at ? `Diunggah operator ${formatDateTime(document.uploaded_at)}` : "Diunggah operator saat input surat masuk",
+      document.dataUrl || "",
+      document.mime_type || document.type || "application/pdf",
+      document.storageKey || "",
+      document.download_path || ""
+    ];
   }
   return row;
 }
@@ -4410,6 +4530,9 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
               <select value={targetName} onChange={(event) => setTargetName(event.target.value)}>
                 <option value="" disabled>Pilih unit atau pihak yang dituju...</option>
                 <option value="Budi Santoso">Budi Santoso - User Demo</option>
+                <option value="Wakil Ketua I">Wakil Ketua I</option>
+                <option value="Wakil Ketua II">Wakil Ketua II</option>
+                <option value="Wakil Ketua III">Wakil Ketua III</option>
                 <option value="Bagian Umum">Bagian Umum</option>
                 <option value="Bagian Akademik">Bagian Akademik</option>
                 <option value="Bagian Keuangan">Bagian Keuangan</option>
@@ -4834,6 +4957,8 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
   const [statusFilter, setStatusFilter] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedAjuan, setSelectedAjuan] = useState(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(10);
   const currentUserRequests = ajuanRequests.filter((item) => (
     item.pemohon === currentUserName && item.nomor !== "AJ/2025/05/00130"
   ));
@@ -4878,6 +5003,18 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
   const filteredHistory = statusFilter
     ? history.filter((row) => statusFilterMap[statusFilter]?.includes(row[7] || getAjuanWorkflowStatus(row[6] || row[5])))
     : history;
+  const historyTotalPages = Math.max(1, Math.ceil(filteredHistory.length / historyPageSize));
+  const visibleHistory = filteredHistory.slice((historyPage - 1) * historyPageSize, historyPage * historyPageSize);
+  const historyPageItems = getPaginationItems(historyPage, historyTotalPages);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [statusFilter, historyPageSize]);
+
+  useEffect(() => {
+    if (historyPage > historyTotalPages) setHistoryPage(historyTotalPages);
+  }, [historyPage, historyTotalPages]);
+
   const trackedRow = getTrackedAjuanRow(history);
   const trackedStatus = trackedRow?.[5] || trackedRow?.[7] || "Draft";
   const trackedNumber = trackedRow?.[1] || "Ajuan baru";
@@ -4996,7 +5133,7 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
         <table className="dashboardTable ajuanHistoryTable">
           <thead><tr><th>No.</th><th>Nomor Surat</th><th>Jenis Surat</th><th>Perihal</th><th>Tanggal Ajuan</th><th>Status</th><th>Aksi</th></tr></thead>
           <tbody>
-            {filteredHistory.map((row) => {
+            {visibleHistory.map((row) => {
               const detail = row[6] || historyRowToAjuan(row, currentUserName, currentUserProfile);
               const isDraftRow = getAjuanWorkflowStatus(detail) === "Draft";
               const openDetail = () => {
@@ -5041,8 +5178,26 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
           </tbody>
         </table>
         <div className="ajuanTableFooter">
-          <div className="ajuanPages"><button disabled>‹</button><button className="active">1</button><button>2</button><button>3</button><button>›</button></div>
-          <div className="ajuanRows">Tampilkan <select><option>5</option><option>10</option></select> dari {filteredHistory.length} data</div>
+          <div className="ajuanPages">
+            <button type="button" disabled={historyPage <= 1} onClick={() => setHistoryPage((current) => Math.max(1, current - 1))} aria-label="Halaman sebelumnya">&lsaquo;</button>
+            {historyPageItems.map((item, index) => (
+              item === "ellipsis"
+                ? <span key={`history-ellipsis-${index}`}>...</span>
+                : <button type="button" className={item === historyPage ? "active" : ""} key={item} onClick={() => setHistoryPage(item)} aria-current={item === historyPage ? "page" : undefined}>{item}</button>
+            ))}
+            <button type="button" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage((current) => Math.min(historyTotalPages, current + 1))} aria-label="Halaman berikutnya">&rsaquo;</button>
+          </div>
+          <div className="ajuanRows">
+            Tampilkan
+            <select value={historyPageSize} onChange={(event) => setHistoryPageSize(Number(event.target.value))}>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={30}>30</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            dari {filteredHistory.length} data
+          </div>
         </div>
       </article>
     </section>
@@ -9518,6 +9673,7 @@ function Status({ text }) {
     dikirim: "sent",
     terkirim: "sent",
     diteruskan: "sent",
+    didisposisikan: "approval",
     diterima: "received",
     selesai: "done",
     aktif: "done",
