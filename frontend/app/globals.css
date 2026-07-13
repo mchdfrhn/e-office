@@ -4840,7 +4840,7 @@ td {
 .clipboardArt {
   position: absolute;
   right: 58px;
-  top: 72px;
+  top: 112px;
   width: 104px;
   height: 122px;
   border-radius: 15px;
@@ -5487,6 +5487,72 @@ td {
   color: #282C70;
   font-size: 18px;
   font-weight: 800;
+}
+
+.backupHistoryTableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.backupHistoryTable {
+  min-width: 580px;
+}
+
+.backupHistoryTable th,
+.backupHistoryTable td {
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+.backupHistoryTable th:nth-child(1),
+.backupHistoryTable td:nth-child(1) {
+  width: 28%;
+}
+
+.backupHistoryTable th:nth-child(2),
+.backupHistoryTable td:nth-child(2) {
+  width: 27%;
+}
+
+.backupHistoryTable th:nth-child(3),
+.backupHistoryTable td:nth-child(3) {
+  width: 13%;
+}
+
+.backupHistoryTable th:nth-child(4),
+.backupHistoryTable td:nth-child(4) {
+  width: 11%;
+  white-space: nowrap;
+}
+
+.backupHistoryTable th:nth-child(5),
+.backupHistoryTable td:nth-child(5) {
+  width: 13%;
+  text-align: center;
+}
+
+.backupHistoryTable th:nth-child(6),
+.backupHistoryTable td:nth-child(6) {
+  width: 8%;
+  text-align: center;
+}
+
+.backupHistoryTable .viewBtn {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.backupHistoryPagination {
+  min-width: 580px;
+  margin-top: 0;
+  padding-top: 16px;
+}
+
+@media (max-width: 720px) {
+  .backupHistoryPagination {
+    min-width: 0;
+  }
 }
 
 .backupHeroIcon {

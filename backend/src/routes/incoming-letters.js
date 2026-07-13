@@ -128,12 +128,13 @@ incomingLettersRouter.get("/", requireAuth, requireRole("administrator", "operat
        JOIN users registrar ON registrar.id = incoming_letters.registered_by
        LEFT JOIN users leader ON leader.id = incoming_letters.forwarded_to
        LEFT JOIN LATERAL (
-         SELECT id, original_name, file_size_bytes, mime_type, previewable, created_at
+         SELECT id, original_name, file_size_bytes, mime_type, previewable,
+                documents.uploaded_at AS created_at
          FROM documents
          WHERE owner_type = 'incoming_letter'
            AND owner_id = incoming_letters.id
            AND deleted_at IS NULL
-         ORDER BY created_at DESC
+         ORDER BY documents.uploaded_at DESC
          LIMIT 1
        ) document ON true
        WHERE incoming_letters.deleted_at IS NULL

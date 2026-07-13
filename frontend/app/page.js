@@ -9217,10 +9217,13 @@ function AdminBackup({ setConfirm }) {
   const [backups, setBackups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lastBackup, setLastBackup] = useState(null);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(5);
+  const [backupMeta, setBackupMeta] = useState({ totalCount: 0, totalPages: 1 });
 
   const fetchBackups = useCallback(async () => {
     try {
-      const data = await apiFetch("/backups?perPage=10");
+      const data = await apiFetch(`/backups?page=${page}&perPage=${perPage}`);
       if (data && data.data) {
         const mappedBackups = data.data.map(b => ({
           id: b.id,
@@ -9234,7 +9237,11 @@ function AdminBackup({ setConfirm }) {
           filename: b.original_name
         }));
         setBackups(mappedBackups);
-        if (mappedBackups.length > 0) {
+        setBackupMeta({
+          totalCount: Number(data.meta?.totalCount || 0),
+          totalPages: Math.max(1, Number(data.meta?.totalPages || 1))
+        });
+        if (page === 1 && mappedBackups.length > 0) {
           const successBackups = mappedBackups.filter(b => b.status === "success");
           if (successBackups.length > 0) {
             setLastBackup(successBackups[0]);
@@ -9244,11 +9251,18 @@ function AdminBackup({ setConfirm }) {
     } catch (e) {
       console.error("Gagal mengambil data backup", e);
     }
-  }, []);
+  }, [page, perPage]);
 
   useEffect(() => {
     fetchBackups();
   }, [fetchBackups]);
+
+  const totalPages = Math.max(1, backupMeta.totalPages);
+  const pageItems = getPaginationItems(page, totalPages);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const handleDownload = async (id, filename) => {
     try {
@@ -9277,7 +9291,8 @@ function AdminBackup({ setConfirm }) {
     setLoading(true);
     try {
       const res = await apiFetch("/backups", { method: "POST" });
-      await fetchBackups();
+      setPage(1);
+      if (page === 1) await fetchBackups();
       setConfirm({
         title: "Backup Selesai",
         body: `Backup dengan ID ${res.data?.id || res.backup?.id} berhasil dijalankan.`
@@ -9343,7 +9358,8 @@ function AdminBackup({ setConfirm }) {
             action="Export log"
             onClick={() => setConfirm({ title: "Export log backup?", body: "Riwayat backup akan diekspor sesuai filter aktif." })}
           />
-          <table className="dashboardTable">
+          <div className="backupHistoryTableWrap">
+          <table className="dashboardTable backupHistoryTable">
             <thead>
               <tr>
                 <th>ID Backup</th>
@@ -9391,6 +9407,42 @@ function AdminBackup({ setConfirm }) {
               )}
             </tbody>
           </table>
+          </div>
+          <div className="archivePagination backupHistoryPagination" aria-label="Navigasi halaman riwayat backup">
+            <div className="archivePageControls">
+              <button type="button" className="archivePageNav" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} aria-label="Halaman sebelumnya">&lt;</button>
+              {pageItems.map((item, index) => (
+                item === "ellipsis"
+                  ? <span className="archivePageEllipsis" key={`backup-ellipsis-${index}`}>...</span>
+                  : (
+                    <button
+                      type="button"
+                      className={item === page ? "archivePageNumber active" : "archivePageNumber"}
+                      key={item}
+                      onClick={() => setPage(item)}
+                      aria-label={`Halaman ${item}`}
+                      aria-current={item === page ? "page" : undefined}
+                    >
+                      {item}
+                    </button>
+                  )
+              ))}
+              <button type="button" className="archivePageNav" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} aria-label="Halaman berikutnya">&gt;</button>
+            </div>
+            <div className="archivePaginationRight">
+              <label className="archivePageSize">
+                Tampilkan
+                <select value={perPage} onChange={(event) => { setPerPage(Number(event.target.value)); setPage(1); }}>
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </label>
+              <div className="archivePageInfo">
+                <span>dari {backupMeta.totalCount} data</span>
+              </div>
+            </div>
+          </div>
         </article>
       </section>
     </section>
