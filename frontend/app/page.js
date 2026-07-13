@@ -670,6 +670,20 @@ const ajuanLetterTypeOptions = [
   "Surat Lainnya"
 ];
 
+const ajuanCopyUnitOptions = [
+  "Ketua STT PU Jakarta",
+  "Wakil Ketua I",
+  "Wakil Ketua II",
+  "Wakil Ketua III",
+  "Kaprodi TS",
+  "Kaprodi TL",
+  "Kaprodi TI",
+  "SPMI",
+  "LPPM",
+  "Kabag BAAK",
+  "Kabag BAUK"
+];
+
 export default function Home({ initialRole = "User", startLoggedIn = false }) {
   const initialDemoRole = roleConfig[initialRole] ? initialRole : "User";
   const [loggedIn, setLoggedIn] = useState(startLoggedIn);
@@ -1060,13 +1074,11 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
       }
     }
 
-    setUserRows((current) => {
-      const nextNumber = current.length + 1;
-      const id = `USR-${String(nextNumber).padStart(3, "0")}`;
-      return [[id, user.name, user.role, user.unit || user.jabatan || "-", user.status], ...current];
+    setConfirm({
+      title: "Pengguna belum tersimpan",
+      body: "Sesi Administrator masih menggunakan mode dummy. Logout, lalu login dengan akun admin backend sebelum menambahkan pengguna."
     });
-    setConfirm({ title: "User dummy tersimpan", body: `${user.name} sudah ditambahkan ke daftar pengguna lokal.` });
-    return true;
+    return false;
   }
 
   async function updateUser(id, user) {
@@ -4056,6 +4068,22 @@ const defaultUserDispositionRows = [
   ["DSP/2025/05/00018", "Arsipkan dokumen undangan kegiatan", "Dewi Pimpinan", "Rendah", "Selesai", "Selesai"]
 ];
 
+const defaultUserCopyRows = [
+  ["TMB/2026/05/00008", "Informasi Kalender Akademik Semester Genap 2026", "BAAK", "Tembusan", "12 Mei 2026", "Belum Dibaca"],
+  ["TMB/2026/05/00007", "Undangan Rapat Koordinasi Kegiatan Kampus", "Bagian Akademik", "Tembusan", "9 Mei 2026", "Dibaca"]
+].map((row) => {
+  row.detail = {
+    kind: "Tembusan",
+    nomorSurat: row[0],
+    pengirim: row[2],
+    perihal: row[1],
+    sentAt: "2026-05-12T08:00:00+07:00",
+    catatan: "Surat ini diteruskan sebagai tembusan untuk diketahui atau disimpan sebagai informasi.",
+    lampiran: [[`${row[0].replaceAll("/", "-")}.pdf`, "184 KB", "Dokumen tembusan"]]
+  };
+  return row;
+});
+
 function mapIncomingLetterToOperatorRow(item) {
   const id = item.id || item.incoming_letter_id || "";
   const agenda = item.agenda_number || item.agendaNumber || item.agenda || "-";
@@ -4955,6 +4983,7 @@ function getAjuanArchiveDate(item) {
 
 function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUserProfile, ajuanRequests }) {
   const [statusFilter, setStatusFilter] = useState(null);
+  const [historyOnly, setHistoryOnly] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedAjuan, setSelectedAjuan] = useState(null);
   const [historyPage, setHistoryPage] = useState(1);
@@ -5030,6 +5059,7 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
     nomorSuratFinal: ajuan.nomorSuratFinal,
     jenis: ajuan.jenis,
     tujuan: ajuan.tujuan,
+    tembusan: ajuan.tembusan || [],
     judul: ajuan.judul,
     sourceStatus: ajuan.status,
     catatanOperator: ajuan.catatanOperator,
@@ -5038,6 +5068,16 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
     revisionMode: true,
     sourceNomor: ajuan.nomor
   });
+  const openAllHistory = () => {
+    setStatusFilter(null);
+    setHistoryPage(1);
+    setHistoryOnly(true);
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+  };
+  const closeAllHistory = () => {
+    setHistoryOnly(false);
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+  };
 
   if (createOpen) {
     return <AjuanSuratCreate onCancel={() => { setCreateOpen(false); setSelectedAjuan(null); }} setConfirm={setConfirm} onCreateAjuan={onCreateAjuan} currentUserName={currentUserName} currentUserProfile={currentUserProfile} draft={selectedAjuan} />;
@@ -5059,16 +5099,23 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
     <section className="ajuanPage">
       <header className="ajuanHeader">
         <div>
-          <h1>Ajuan Surat</h1>
-          <p>Buat pengajuan surat baru dan pantau riwayat pengajuan</p>
+          <h1>{historyOnly ? "Riwayat Pengajuan" : "Ajuan Surat"}</h1>
+          <p>{historyOnly ? "Lihat seluruh pengajuan surat dan pantau status prosesnya." : "Buat pengajuan surat baru dan pantau riwayat pengajuan"}</p>
         </div>
-        <button className="newAjuanBtn createAjuanBtn" onClick={() => openCreateAjuan()}>
-          <span>+</span>
-          Buat Ajuan Baru
-        </button>
+        {historyOnly ? (
+          <button type="button" className="newAjuanBtn createAjuanBtn" onClick={closeAllHistory}>
+            <LineIcon name="arrowLeft" />
+            Kembali ke Ajuan Surat
+          </button>
+        ) : (
+          <button className="newAjuanBtn createAjuanBtn" onClick={() => openCreateAjuan()}>
+            <span>+</span>
+            Buat Ajuan Baru
+          </button>
+        )}
       </header>
 
-      <section className="ajuanStatusGrid" aria-label="Ringkasan Status Ajuan">
+      {!historyOnly && <section className="ajuanStatusGrid" aria-label="Ringkasan Status Ajuan">
         {statusCards.map(([label, value, meta, icon, tone]) => (
           <button type="button" className={`ajuanStatusCard clickable ${tone}`} key={label} onClick={() => setStatusFilter(label)} aria-label={`Filter ajuan ${label}`}>
             <span className="icon3d">{iconSymbol(icon)}</span>
@@ -5079,9 +5126,9 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
             </div>
           </button>
         ))}
-      </section>
+      </section>}
 
-      <section className="ajuanMainGrid">
+      {!historyOnly && <section className="ajuanMainGrid">
         <article className="ajuanGuide">
           <div className="guideHeader">
             <div>
@@ -5123,12 +5170,14 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
             })}
           </div>
         </article>
-      </section>
+      </section>}
 
       <article className="ajuanHistory userAjuanHistory">
         <div className="panelHeader">
           <h3>{statusFilter ? `Riwayat Pengajuan - ${statusFilter}` : "Riwayat Pengajuan"}</h3>
-          <button onClick={() => setStatusFilter(null)}>Lihat semua <span aria-hidden="true">-&gt;</span></button>
+          {!historyOnly && (
+            <button type="button" onClick={openAllHistory}>Lihat semua <span aria-hidden="true">-&gt;</span></button>
+          )}
         </div>
         <table className="dashboardTable ajuanHistoryTable">
           <thead><tr><th>No.</th><th>Nomor Surat</th><th>Jenis Surat</th><th>Perihal</th><th>Tanggal Ajuan</th><th>Status</th><th>Aksi</th></tr></thead>
@@ -5336,6 +5385,7 @@ function AjuanSuratDetail({ ajuan, onBack, onContinue, onCreateRetry, setConfirm
               <DetailItem icon="calendar" label="Tanggal Ajuan" value={ajuan.tanggal} />
               <DetailItem icon="user" label="Pemohon" value={ajuan.pemohon} />
               <DetailItem icon="bank" label="Tujuan Surat" value={ajuan.tujuan || "-"} wide />
+              <DetailItem icon="mail" label="Tembusan" value={ajuan.tembusan?.length ? ajuan.tembusan.join(", ") : "-"} wide />
               <DetailItem icon="mail" label="Perihal" value={ajuan.judul || ajuan.jenis} wide />
             </div>
           </article>
@@ -5462,6 +5512,8 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
   const savedJenisSelection = savedOtherJenis ? "Surat Lainnya" : savedJenis;
   const [selectedJenis, setSelectedJenis] = useState(savedJenisSelection);
   const [otherJenis, setOtherJenis] = useState(savedOtherJenis);
+  const [selectedCopyUnits, setSelectedCopyUnits] = useState(Array.isArray(draft?.tembusan) ? draft.tembusan : []);
+  const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
   const letterTypeOptions = draft?.jenis && !ajuanLetterTypeOptions.includes(draft.jenis)
     ? [draft.jenis, ...ajuanLetterTypeOptions]
     : ajuanLetterTypeOptions;
@@ -5469,6 +5521,13 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
     const [name, size] = attachment || [];
     return name && !String(name).toLowerCase().includes("belum diunggah") && size && size !== "-";
   });
+  const toggleCopyUnit = (unit) => {
+    setSelectedCopyUnits((current) => (
+      current.includes(unit)
+        ? current.filter((item) => item !== unit)
+        : [...current, unit]
+    ));
+  };
 
   async function submitAjuan(event) {
     event.preventDefault();
@@ -5523,6 +5582,7 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
       status: "Menunggu Approval",
       dikirimDariDraft: intent === "send" && draft?.status === "Draft",
       tujuan,
+      tembusan: selectedCopyUnits,
       judul,
       keterangan,
       dokumenDiunggahUser: Boolean(file?.name) || Boolean(draft?.dokumenDiunggahUser) || hasUploadedAjuanDocument(draft),
@@ -5572,7 +5632,8 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
                   {[
                     ["Nomor Ajuan", draft?.nomor || "-"],
                     ["Jenis Surat", draft?.jenis || "-"],
-                    ["Tujuan Surat", draft?.tujuan || "-"]
+                    ["Tujuan Surat", draft?.tujuan || "-"],
+                    ["Tembusan", draft?.tembusan?.length ? draft.tembusan.join(", ") : "-"]
                   ].map(([label, value]) => (
                     <div className="revisionLockedItem" key={label}>
                       <span>{label}</span>
@@ -5602,6 +5663,51 @@ function AjuanSuratCreate({ onCancel, setConfirm, onCreateAjuan, currentUserName
                 <label>Tujuan Surat <span>*</span>
                   <input name="tujuan" placeholder="Isi Tujuan Surat" defaultValue={draft?.tujuan || ""} required />
                 </label>
+                <div className="ajuanCopyField">
+                  <span className="ajuanCopyLabel">Tembusan</span>
+                  <div className={`ajuanCopySelect${copyDropdownOpen ? " open" : ""}`}>
+                    <div
+                      className="ajuanCopyControl"
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={copyDropdownOpen}
+                      aria-label="Pilih unit tembusan"
+                      onClick={() => setCopyDropdownOpen((current) => !current)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setCopyDropdownOpen((current) => !current);
+                        }
+                      }}
+                    >
+                      <div className="ajuanCopyTags">
+                        {selectedCopyUnits.length ? selectedCopyUnits.map((unit) => (
+                          <span className="ajuanCopyTag" key={unit}>
+                            {unit}
+                            <button type="button" onClick={(event) => { event.stopPropagation(); toggleCopyUnit(unit); }} aria-label={`Hapus tembusan ${unit}`}>&times;</button>
+                          </span>
+                        )) : <span className="ajuanCopyPlaceholder">Pilih unit tembusan</span>}
+                      </div>
+                      <button type="button" className="ajuanCopyToggle" tabIndex={-1} onClick={(event) => { event.stopPropagation(); setCopyDropdownOpen((current) => !current); }} aria-expanded={copyDropdownOpen} aria-label="Buka pilihan tembusan">
+                        <LineIcon name="chevronDown" />
+                      </button>
+                    </div>
+                    {copyDropdownOpen && (
+                      <div className="ajuanCopyMenu">
+                        {ajuanCopyUnitOptions.map((unit) => {
+                          const selected = selectedCopyUnits.includes(unit);
+                          return (
+                            <button type="button" className={selected ? "selected" : ""} key={unit} onClick={() => toggleCopyUnit(unit)}>
+                              <span className="ajuanCopyCheckbox">{selected && <LineIcon name="check" />}</span>
+                              {unit}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <small>Pilih satu atau beberapa unit yang menerima tembusan surat.</small>
+                </div>
                 {selectedJenis === "Surat Lainnya" && (
                   <label className="ajuanOtherTypeField">Jenis Surat Lainnya <span>*</span>
                     <input
@@ -5686,12 +5792,14 @@ function ClipboardIllustration() {
 
 function DisposisiMasukHome({ setConfirm }) {
   const [statusFilter, setStatusFilter] = useState("Semua Status");
+  const [typeFilter, setTypeFilter] = useState("Semua");
   const [dispositionQuery, setDispositionQuery] = useState("");
   const [page, setPage] = useState(1);
   const [followupDraft, setFollowupDraft] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
   const [dispositionItems, setDispositionItems] = useState(defaultUserDispositionRows);
+  const [copyItems, setCopyItems] = useState(defaultUserCopyRows);
 
   useEffect(() => {
     let active = true;
@@ -5727,36 +5835,45 @@ function DisposisiMasukHome({ setConfirm }) {
     };
   }, [setConfirm]);
   const pageSize = 3;
-  const userDispositionStatuses = ["Semua Status", ...Array.from(new Set(dispositionItems.map((row) => row[5])))];
+  const inboxItems = [...dispositionItems, ...copyItems];
   const summaryStats = [
     ["Menunggu Tindak Lanjut", String(dispositionItems.filter((row) => row[5] === "Dikirim").length), "Disposisi perlu ditindaklanjuti", "clock", "orange", "Dikirim"],
-    ["Diproses", String(dispositionItems.filter((row) => ["Diterima", "Ditindaklanjuti"].includes(row[5])).length), "Sedang dalam proses", "doc", "blue", "Ditindaklanjuti"],
-    ["Selesai", String(dispositionItems.filter((row) => row[5] === "Selesai").length), "Disposisi telah diselesaikan", "check", "green", "Selesai"]
+    ["Diproses", String(dispositionItems.filter((row) => ["Diterima", "Ditindaklanjuti"].includes(row[5])).length), "Sedang dalam proses", "doc", "blue", "Diproses"],
+    ["Selesai", String(dispositionItems.filter((row) => row[5] === "Selesai").length), "Disposisi telah diselesaikan", "check", "green", "Selesai"],
+    ["Tembusan", String(copyItems.length), "Surat untuk diketahui", "mail", "purple", "Tembusan"]
   ];
-  const filteredDispositions = dispositionItems.filter((row) => {
+  const filteredDispositions = inboxItems.filter((row) => {
+    const rowType = row.detail?.kind || "Disposisi";
     const haystack = row.join(" ").toLowerCase();
     const matchesQuery = haystack.includes(dispositionQuery.toLowerCase());
-    const matchesStatus = statusFilter === "Semua Status" ? true : row[5] === statusFilter;
-    return matchesQuery && matchesStatus;
+    const matchesStatus = statusFilter === "Semua Status" || rowType === "Tembusan"
+      ? true
+      : statusFilter === "Diproses"
+        ? ["Diterima", "Ditindaklanjuti"].includes(row[5])
+        : row[5] === statusFilter;
+    const matchesType = typeFilter === "Semua" || rowType === typeFilter;
+    return matchesQuery && matchesStatus && matchesType;
   });
   const totalPages = Math.max(1, Math.ceil(filteredDispositions.length / pageSize));
   const visibleDispositions = filteredDispositions.slice((page - 1) * pageSize, page * pageSize);
-  const statusLabel = (status) => {
+  const statusLabel = (status, kind = "Disposisi") => {
+    if (kind === "Tembusan") return status === "Dibaca" ? "Dibaca" : "Tembusan";
     if (status === "Selesai") return "Selesai";
     if (status === "Dikirim") return "Menunggu";
     return "Diproses";
   };
-  const statusTone = (status) => {
+  const statusTone = (status, kind = "Disposisi") => {
+    if (kind === "Tembusan") return "purple";
     if (status === "Selesai") return "green";
     if (status === "Dikirim") return "orange";
     return "blue";
   };
-  const rowIcon = (status) => status === "Selesai" ? "check" : status === "Dikirim" ? "doc" : "clipboard";
+  const rowIcon = (status, kind = "Disposisi") => kind === "Tembusan" ? "mail" : status === "Selesai" ? "check" : status === "Dikirim" ? "doc" : "clipboard";
   const rowDate = (row) => row.detail?.sentAt ? formatDateOnly(row.detail.sentAt) : row[4];
 
   useEffect(() => {
     setPage(1);
-  }, [dispositionQuery, statusFilter]);
+  }, [dispositionQuery, statusFilter, typeFilter]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -5839,6 +5956,15 @@ function DisposisiMasukHome({ setConfirm }) {
         setFollowupDraft((current) => current?.id === id ? { ...current, status: "Diterima" } : current);
       }
     });
+  };
+  const markCopyRead = (id) => {
+    setCopyItems((current) => current.map((row) => {
+      if (row[0] !== id) return row;
+      const nextRow = [...row.slice(0, 5), "Dibaca"];
+      nextRow.detail = row.detail;
+      return nextRow;
+    }));
+    setConfirm({ title: "Tembusan telah dibaca", body: `${id} ditandai sudah dibaca dan tetap tersedia sebagai informasi.` });
   };
 
   if (followupDraft) {
@@ -6085,7 +6211,15 @@ function DisposisiMasukHome({ setConfirm }) {
 
       <section className="userDispositionStats" aria-label="Ringkasan disposisi masuk">
         {summaryStats.map(([label, value, meta, icon, tone, targetStatus]) => (
-          <button type="button" className={`userDispositionStat ${tone}`} key={label} onClick={() => setStatusFilter(targetStatus)}>
+          <button type="button" className={`userDispositionStat ${tone}`} key={label} onClick={() => {
+            if (targetStatus === "Tembusan") {
+              setTypeFilter("Tembusan");
+              setStatusFilter("Semua Status");
+            } else {
+              setTypeFilter("Disposisi");
+              setStatusFilter(targetStatus);
+            }
+          }}>
             <span><LineIcon name={icon} /></span>
             <div>
               <small>{label}</small>
@@ -6096,45 +6230,67 @@ function DisposisiMasukHome({ setConfirm }) {
         ))}
       </section>
 
+      <section className="userDispositionToolbar" aria-label="Pencarian dan filter surat masuk">
+        <label className="userDispositionSearch">
+          <LineIcon name="search" />
+          <input value={dispositionQuery} onChange={(event) => setDispositionQuery(event.target.value)} placeholder="Cari disposisi atau perihal..." />
+        </label>
+        <div className="userDispositionTypeFilters" role="group" aria-label="Filter jenis surat">
+          {[
+            ["Semua", "filter"],
+            ["Disposisi", "doc"],
+            ["Tembusan", "mail"]
+          ].map(([label, icon]) => (
+            <button type="button" className={typeFilter === label ? "active" : ""} key={label} onClick={() => {
+              setTypeFilter(label);
+              setStatusFilter("Semua Status");
+            }}>
+              <LineIcon name={icon} /> {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="userDispositionGrid">
         <article className="disposisiList">
           <div className="userDispositionListHeader">
-            <h3>Daftar Disposisi Masuk</h3>
-            <div>
-              <label className="userDispositionSearch">
-                <LineIcon name="search" />
-                <input value={dispositionQuery} onChange={(event) => setDispositionQuery(event.target.value)} placeholder="Cari disposisi, nomor atau perihal..." />
-              </label>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter status disposisi">
-                {userDispositionStatuses.map((status) => <option key={status}>{status}</option>)}
-              </select>
-            </div>
+            <h3>Daftar Disposisi &amp; Tembusan</h3>
           </div>
           <div className="userDispositionRows">
             {visibleDispositions.map((row) => {
               const [id, instruksi, pemberi, prioritas, deadline, status] = row;
+              const kind = row.detail?.kind || "Disposisi";
+              const isCopy = kind === "Tembusan";
               return (
-                <article className={`userDispositionRow ${statusTone(status)}`} key={id}>
+                <article className={`userDispositionRow ${statusTone(status, kind)}${isCopy ? " copy" : ""}`} key={id}>
                   <div className="userDispositionRowIcon">
-                    <span>{statusLabel(status)}</span>
-                    <i><LineIcon name={rowIcon(status)} /></i>
+                    <span>{statusLabel(status, kind)}</span>
+                    <i><LineIcon name={rowIcon(status, kind)} /></i>
                   </div>
                   <div className="userDispositionRowBody">
                     <div className="userDispositionRowTop">
                       <h4>{instruksi}</h4>
                       <time>{rowDate(row)}</time>
                     </div>
-                    <p>Nomor Disposisi <b>{id}</b></p>
+                    <p>Nomor {kind} <b>{id}</b></p>
                     <div className="userDispositionRowMeta">
                       <span>Dari: {pemberi}</span>
-                      <span>Batas waktu: <b>{deadline}</b></span>
+                      {isCopy ? <span>Informasi untuk diketahui.</span> : <span>Batas waktu: <b>{deadline}</b></span>}
                     </div>
-                    <div className="userDispositionRowActions">
+                    <div className={`userDispositionRowActions${isCopy ? " copyActions" : ""}`}>
                       <button type="button" className="softBtn" onClick={() => openDocument(row)}><LineIcon name="eye" /> Lihat Dokumen</button>
-                      <button type="button" className="softBtn" onClick={() => markReceived(id)} disabled={status !== "Dikirim"}>
-                        <LineIcon name="check" /> {status === "Dikirim" ? "Tandai Diterima" : "Diterima"}
-                      </button>
-                      <button type="button" className="primaryBtn" onClick={() => openFollowup(row)}>Tindak Lanjut <span aria-hidden="true">-&gt;</span></button>
+                      {isCopy ? (
+                        <button type="button" className="softBtn copyReadBtn" onClick={() => markCopyRead(id)} disabled={status === "Dibaca"}>
+                          <LineIcon name="check" /> {status === "Dibaca" ? "Sudah Dibaca" : "Tandai Dibaca"}
+                        </button>
+                      ) : (
+                        <>
+                          <button type="button" className="softBtn" onClick={() => markReceived(id)} disabled={status !== "Dikirim"}>
+                            <LineIcon name="check" /> {status === "Dikirim" ? "Tandai Diterima" : "Diterima"}
+                          </button>
+                          <button type="button" className="primaryBtn" onClick={() => openFollowup(row)}>Tindak Lanjut <span aria-hidden="true">-&gt;</span></button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </article>
@@ -6142,8 +6298,8 @@ function DisposisiMasukHome({ setConfirm }) {
             })}
             {filteredDispositions.length === 0 && (
               <div className="disposisiEmptyCard">
-                <strong>Tidak ada disposisi</strong>
-                <span>Pilih semua status untuk melihat seluruh disposisi dari pimpinan.</span>
+                <strong>Tidak ada surat</strong>
+                <span>Ubah pencarian atau pilih Semua untuk melihat disposisi dan tembusan.</span>
               </div>
             )}
           </div>
@@ -6190,32 +6346,28 @@ function DisposisiMasukHome({ setConfirm }) {
           </aside>
         ) : (
           <aside className="userDispositionSide">
+            <article className="userDispositionDifference">
+              <h3>Perbedaan Disposisi dan Tembusan</h3>
+              <div className="userDispositionDifferenceItem disposition">
+                <span><LineIcon name="doc" /></span>
+                <div><strong>Disposisi</strong><small>Surat berisi instruksi atau tindakan yang perlu Anda laksanakan.</small></div>
+              </div>
+              <div className="userDispositionDifferenceItem copy">
+                <span><LineIcon name="mail" /></span>
+                <div><strong>Tembusan</strong><small>Surat yang diteruskan untuk diketahui atau disimpan sebagai informasi.</small></div>
+              </div>
+            </article>
             <article className="followupPanel">
-              <h3>Alur Tindak Lanjut</h3>
+              <h3>Alur Tindak Lanjut Disposisi</h3>
               <div className="followupSteps">
                 {[
-                  ["Terima Disposisi", "Baca instruksi dan tandai disposisi sebagai diterima."],
-                  ["Kerjakan Instruksi", "Kerjakan sesuai instruksi dan siapkan catatan atau dokumen pendukung."],
-                  ["Unggah Hasil / Kirim Tindak Lanjut", "Unggah hasil pekerjaan dan kirimkan kembali sebagai tindak lanjut."]
+                  ["Baca instruksi", "Pahami isi disposisi dan petunjuk yang diberikan pimpinan."],
+                  ["Lakukan tindakan", "Kerjakan sesuai instruksi dan siapkan dokumen pendukung."],
+                  ["Unggah hasil & selesaikan", "Unggah hasil pekerjaan dan selesaikan disposisi secara tercatat."]
                 ].map(([title, body], index) => (
                   <div key={title}><b>{index + 1}</b><span><strong>{title}</strong><small>{body}</small></span></div>
                 ))}
               </div>
-            </article>
-            <article className="userDispositionActivity">
-              <h3>Ringkasan Aktivitas</h3>
-              {[
-                ["Disposisi \"Penyusunan laporan kegiatan...\"", "Ditandai selesai", "15 Mei, 10:42", "green"],
-                ["Tindak lanjut dikirim", "DSP/2025/05/00021", "14 Mei, 16:30", "blue"],
-                ["Disposisi baru diterima", dispositionItems[0]?.[0] || "DSP/2025/05/00021", "14 Mei, 09:15", "orange"]
-              ].map(([title, body, time, tone]) => (
-                <div className={`userDispositionActivityItem ${tone}`} key={`${title}-${time}`}>
-                  <span><LineIcon name={tone === "green" ? "check" : tone === "blue" ? "doc" : "clock"} /></span>
-                  <div><strong>{title}</strong><small>{body}</small></div>
-                  <time>{time}</time>
-                </div>
-              ))}
-              <button type="button" onClick={() => setConfirm({ title: "Lihat semua aktivitas", body: "Aktivitas lengkap disposisi tersimpan di notifikasi dan audit trail." })}>Lihat semua aktivitas <span aria-hidden="true">-&gt;</span></button>
             </article>
           </aside>
         )}
@@ -6487,9 +6639,7 @@ function AdminUserManagement({
 }
 
 function userEmail(row) {
-  if (row[5] && String(row[5]).includes("@")) return row[5];
-  const slug = String(row[1] || "pengguna").trim().toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/(^\.|\.$)/g, "");
-  return `${slug || "pengguna"}@sttpu.ac.id`;
+  return row[5] && String(row[5]).trim() ? row[5] : "-";
 }
 
 function userActionId(row) {
@@ -6588,6 +6738,7 @@ function LineIcon({ name }) {
     edit: <><path d="M12 20h9" {...common} /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z" {...common} /></>,
     trash: <><path d="M3 6h18" {...common} /><path d="M8 6V4h8v2" {...common} /><path d="M19 6l-1 15H6L5 6" {...common} /><path d="M10 11v6M14 11v6" {...common} /></>,
     arrowLeft: <><path d="M19 12H5" {...common} /><path d="m12 19-7-7 7-7" {...common} /></>,
+    chevronDown: <path d="m7 10 5 5 5-5" {...common} />,
     bank: <><path d="M4 10h16" {...common} /><path d="M5 10 12 5l7 5" {...common} /><path d="M6 10v8M10 10v8M14 10v8M18 10v8" {...common} /><path d="M4 18h16M3 21h18" {...common} /></>
     ,
     phone: <><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.91.32 1.8.6 2.65a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.26-1.26a2 2 0 0 1 2.11-.45c.85.28 1.74.48 2.65.6A2 2 0 0 1 22 16.92Z" {...common} /></>,
@@ -7473,7 +7624,7 @@ function AdminUserCreate({ onCancel, onCreateUser, initialData }) {
               <label>Email
                 <input name="email" type="email" defaultValue={initialData?.email || ""} placeholder="nama@instansi.ac.id" />
               </label>
-              <label>{isEdit ? "Password Baru (Kosongkan jika tidak diubah)" : "Password Awal *"}
+              <label>{isEdit ? "Password Baru (Kosongkan jika tidak diubah)" : <>Password <span>*</span></>}
                 <input name="password" type="password" placeholder={isEdit ? "Masukkan password baru jika ingin mengubah" : "Masukkan password awal"} required={!isEdit} />
               </label>
             </div>

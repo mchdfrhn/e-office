@@ -5206,6 +5206,179 @@ td {
   grid-column: 1 / -1;
 }
 
+.ajuanCopyField {
+  position: relative;
+  grid-column: 1 / -1;
+}
+
+.ajuanCopyLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: #282c70;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ajuanCopySelect {
+  position: relative;
+}
+
+.ajuanCopyControl {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #cfe0f8;
+  border-radius: 9px;
+  padding: 6px 7px 6px 10px;
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(12, 97, 241, 0.03);
+  cursor: pointer;
+}
+
+.ajuanCopyControl:focus-visible {
+  border-color: #2e90f9;
+  outline: 3px solid rgba(46, 144, 249, 0.16);
+}
+
+.ajuanCopySelect.open .ajuanCopyControl {
+  border-color: #2e90f9;
+  outline: 3px solid rgba(46, 144, 249, 0.16);
+}
+
+.ajuanCopyTags {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ajuanCopyTag {
+  min-height: 25px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 2px 7px;
+  color: #0054f4;
+  background: #eaf2ff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ajuanCopyTag button {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  color: #5a6ca2;
+  background: transparent;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.ajuanCopyPlaceholder {
+  align-self: center;
+  color: #8d90b7;
+  font-size: 12px;
+}
+
+.ajuanCopyToggle {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border: 0;
+  border-radius: 6px;
+  color: #5a6ca2;
+  background: #f4f7fd;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.ajuanCopyToggle svg {
+  width: 15px;
+  height: 15px;
+  transition: transform 0.18s ease;
+}
+
+.ajuanCopySelect.open .ajuanCopyToggle {
+  color: #0054f4;
+  background: #eaf2ff;
+}
+
+.ajuanCopySelect.open .ajuanCopyToggle svg {
+  transform: rotate(180deg);
+}
+
+.ajuanCopyMenu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 7px);
+  left: 0;
+  right: 0;
+  max-height: 250px;
+  overflow-y: auto;
+  display: grid;
+  gap: 2px;
+  border: 1px solid #cfe0f8;
+  border-radius: 10px;
+  padding: 7px;
+  background: #ffffff;
+  box-shadow: 0 18px 38px rgba(31, 71, 136, 0.18);
+}
+
+.ajuanCopyMenu > button {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 9px;
+  color: #282c70;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ajuanCopyMenu > button:hover,
+.ajuanCopyMenu > button.selected {
+  color: #0054f4;
+  background: #eef5ff;
+}
+
+.ajuanCopyCheckbox {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #aac4f5;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 11px;
+}
+
+.ajuanCopyMenu > button.selected .ajuanCopyCheckbox {
+  border-color: #0054f4;
+  background: #0054f4;
+}
+
+.ajuanCopyCheckbox svg {
+  width: 12px;
+  height: 12px;
+}
+
+.ajuanCopyField > small {
+  display: block;
+  margin-top: 7px;
+  color: #6b75a5;
+  font-size: 11px;
+}
+
 .ajuanOtherTypeField small {
   flex: 0 0 100%;
   color: #5A5F99;
@@ -11551,7 +11724,7 @@ td {
 
 .userDispositionStats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
   margin-bottom: 18px;
 }
@@ -11581,6 +11754,7 @@ td {
 .userDispositionStat.orange > span { background: #ff9f1c; }
 .userDispositionStat.blue > span { background: #1677ff; }
 .userDispositionStat.green > span { background: #43c464; }
+.userDispositionStat.purple > span { background: #7c4dff; }
 
 .userDispositionStat svg {
   width: 22px;
@@ -11606,6 +11780,55 @@ td {
   margin: 4px 0 0;
   color: #6b75a5;
   font-size: 11px;
+}
+
+.userDispositionToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  border: 1px solid #dce8ff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(31, 71, 136, 0.05);
+}
+
+.userDispositionToolbar .userDispositionSearch {
+  flex: 1;
+  min-width: 0;
+}
+
+.userDispositionTypeFilters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.userDispositionTypeFilters button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #d7e4ff;
+  border-radius: 7px;
+  padding: 0 13px;
+  color: #4d5794;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.userDispositionTypeFilters button.active {
+  color: #ffffff;
+  border-color: #0054f4;
+  background: #0054f4;
+  box-shadow: 0 6px 14px rgba(0, 84, 244, 0.2);
+}
+
+.userDispositionTypeFilters svg {
+  width: 14px;
+  height: 14px;
 }
 
 .userDispositionGrid {
@@ -11736,6 +11959,8 @@ td {
 .userDispositionRow.blue .userDispositionRowIcon i { color: #0c61f1; background: #eaf3ff; }
 .userDispositionRow.green .userDispositionRowIcon span { color: #1b9343; background: #e8f8ee; }
 .userDispositionRow.green .userDispositionRowIcon i { color: #24a84f; background: #e8f8ee; }
+.userDispositionRow.purple .userDispositionRowIcon span { color: #6d3bf0; background: #f0eaff; }
+.userDispositionRow.purple .userDispositionRowIcon i { color: #7c4dff; background: #f1ebff; }
 
 .userDispositionRowBody {
   min-width: 0;
@@ -11785,6 +12010,15 @@ td {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 12px;
+}
+
+.userDispositionRowActions.copyActions {
+  grid-template-columns: repeat(2, minmax(0, 190px));
+}
+
+.userDispositionRowActions .copyReadBtn {
+  color: #6d3bf0;
+  border-color: #cdbbff;
 }
 
 .userDispositionRowActions .softBtn,
@@ -11854,7 +12088,8 @@ td {
 }
 
 .userDispositionSide .followupPanel,
-.userDispositionActivity {
+.userDispositionActivity,
+.userDispositionDifference {
   min-height: auto;
   border: 1px solid #dce8ff;
   border-radius: 12px;
@@ -11864,11 +12099,68 @@ td {
 }
 
 .userDispositionSide .followupPanel h3,
-.userDispositionActivity h3 {
+.userDispositionActivity h3,
+.userDispositionDifference h3 {
   margin: 0 0 16px;
   color: #11185f;
   font-size: 15px;
   font-weight: 900;
+}
+
+.userDispositionDifference {
+  display: grid;
+  gap: 10px;
+}
+
+.userDispositionDifferenceItem {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e2eaff;
+  border-radius: 9px;
+  padding: 11px;
+  background: #fbfdff;
+}
+
+.userDispositionDifferenceItem > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+}
+
+.userDispositionDifferenceItem.disposition > span {
+  color: #f59e0b;
+  background: #fff4dc;
+}
+
+.userDispositionDifferenceItem.copy > span {
+  color: #7c4dff;
+  background: #f0eaff;
+}
+
+.userDispositionDifferenceItem svg {
+  width: 18px;
+  height: 18px;
+}
+
+.userDispositionDifferenceItem strong,
+.userDispositionDifferenceItem small {
+  display: block;
+}
+
+.userDispositionDifferenceItem strong {
+  color: #11185f;
+  font-size: 12px;
+}
+
+.userDispositionDifferenceItem small {
+  margin-top: 3px;
+  color: #61709c;
+  font-size: 10px;
+  line-height: 1.45;
 }
 
 .userDispositionSide .followupSteps {
@@ -13661,6 +13953,16 @@ td {
     min-width: 0;
   }
 
+  .userDispositionToolbar,
+  .userDispositionTypeFilters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .userDispositionTypeFilters button {
+    justify-content: center;
+  }
+
   .userDispositionRow {
     grid-template-columns: 1fr;
   }
@@ -13669,7 +13971,8 @@ td {
     justify-items: start;
   }
 
-  .userDispositionRowActions {
+  .userDispositionRowActions,
+  .userDispositionRowActions.copyActions {
     grid-template-columns: 1fr;
   }
 
@@ -13716,7 +14019,7 @@ td {
   }
 
   .userDispositionStats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .documentInfoGrid,
