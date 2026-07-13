@@ -4533,12 +4533,12 @@ function PimpinanIncomingProcess({ detail, onBack, onCreateDisposition, setConfi
                 <option value="Wakil Ketua I">Wakil Ketua I</option>
                 <option value="Wakil Ketua II">Wakil Ketua II</option>
                 <option value="Wakil Ketua III">Wakil Ketua III</option>
-                <option value="Bagian Umum">Bagian Umum</option>
-                <option value="Bagian Akademik">Bagian Akademik</option>
-                <option value="Bagian Keuangan">Bagian Keuangan</option>
-                <option value="Bagian Kepegawaian">Bagian Kepegawaian</option>
+                <option value="Unit Umum">Unit Umum</option>
+                <option value="Unit Akademik">Unit Akademik</option>
+                <option value="Unit Keuangan">Unit Keuangan</option>
+                <option value="Unit Kepegawaian">Unit Kepegawaian</option>
                 <option value="Unit LPPM">Unit LPPM</option>
-                <option value="SPMI">SPMI</option>
+                <option value="Unit SPMI">Unit SPMI</option>
                 <option value="Prodi Teknik Sipil">Prodi Teknik Sipil</option>
                 <option value="Prodi Teknik Lingkungan">Prodi Teknik Lingkungan</option>
                 <option value="Prodi Teknik Informatika">Prodi Teknik Informatika</option>
@@ -7445,7 +7445,7 @@ function AdminUserCreate({ onCancel, onCreateUser, initialData }) {
     const status = String(form.get("status") || "Aktif").trim();
     const unit = String(form.get("unit") || "").trim();
     const jabatan = String(form.get("jabatan") || "").trim();
-    if (!name || (!isEdit && !password) || !role) return;
+    if (!name || (!isEdit && !password) || !role || !unit) return;
     onCreateUser({ name, username, email, password, role, status, unit, jabatan });
   }
 
@@ -7497,11 +7497,11 @@ function AdminUserCreate({ onCancel, onCreateUser, initialData }) {
                   <option>Nonaktif</option>
                 </select>
               </label>
+              <label>Unit Kerja <span>*</span>
+                <input name="unit" defaultValue={initialData?.unit || ""} placeholder="Contoh: Tata Usaha" required />
+              </label>
               <label>Jabatan
                 <input name="jabatan" defaultValue={initialData?.jabatan || ""} placeholder="Contoh: Staf Administrasi" />
-              </label>
-              <label>Unit Kerja
-                <input name="unit" defaultValue={initialData?.unit || ""} placeholder="Contoh: Tata Usaha" />
               </label>
             </div>
           </article>

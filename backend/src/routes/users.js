@@ -70,6 +70,7 @@ usersRouter.post("/", requireAuth, requireRole("administrator"), async (request,
     if (!username) requiredErrors.username = "Username wajib diisi.";
     if (!password) requiredErrors.password = "Password wajib diisi.";
     if (!role) requiredErrors.role = "Role wajib diisi.";
+    if (!String(unit || "").trim()) requiredErrors.unit = "Unit kerja wajib diisi.";
     if (Object.keys(requiredErrors).length > 0) {
       return response.status(422).json({ message: "Validasi gagal.", errors: requiredErrors });
     }
@@ -145,6 +146,7 @@ usersRouter.put("/:id", requireAuth, async (request, response, next) => {
     const requiredErrors = {};
     if (!fullName) requiredErrors.fullName = "Nama lengkap wajib diisi.";
     if (isAdmin && !isSelf && !role) requiredErrors.role = "Role wajib diisi.";
+    if (isAdmin && !String(unit || "").trim()) requiredErrors.unit = "Unit kerja wajib diisi.";
     if (Object.keys(requiredErrors).length > 0) {
       return response.status(422).json({ message: "Validasi gagal.", errors: requiredErrors });
     }
