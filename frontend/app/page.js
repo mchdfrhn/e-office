@@ -10,6 +10,7 @@ const LOCAL_INCOMING_KEY = "eoffice_local_incoming_letters";
 const LOCAL_OUTGOING_KEY = "eoffice_local_outgoing_letters";
 const LOCAL_DISPOSITIONS_KEY = "eoffice_local_dispositions";
 const LOCAL_USERS_KEY = "eoffice_local_users";
+const LOCAL_NOTIFICATIONS_KEY = "eoffice_local_notifications";
 const ATTACHMENT_DB_NAME = "eoffice_attachment_store";
 const ATTACHMENT_DB_VERSION = 1;
 const ATTACHMENT_STORE_NAME = "attachments";
@@ -553,7 +554,7 @@ const rows = {
   ]
 };
 
-const notifications = [
+const demoNotifications = [
   ["Ajuan surat baru masuk", "Operator perlu memeriksa AJ-2026-0007.", true],
   ["Surat diteruskan ke pimpinan", "AG-2026-041 menunggu disposisi.", true],
   ["Disposisi baru diterima", "Bagian Umum menerima instruksi segera.", true],
@@ -701,7 +702,17 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [errors, setErrors] = useState({});
-  const [confirm, setConfirm] = useState(null);
+  const [confirm, setConfirmState] = useState(null);
+  const setConfirm = useCallback((value) => {
+    if (["User", "Pimpinan"].includes(role)) {
+      if (value && typeof value.onConfirm === "function") {
+        Promise.resolve(value.onConfirm()).catch((error) => console.error("Aksi konfirmasi gagal", error));
+      }
+      setConfirmState(null);
+      return;
+    }
+    setConfirmState(value);
+  }, [role]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [ajuanRequests, setAjuanRequests] = useState(initialAjuanRequests);
   const [outgoingLetters, setOutgoingLetters] = useState(initialOutgoingLetters);
@@ -711,6 +722,9 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
   const [localDataReady, setLocalDataReady] = useState(false);
   const [userParams, setUserParams] = useState({ page: 1, search: "", role: "", status: "" });
   const [userMeta, setUserMeta] = useState({ totalPages: 1, totalCount: 0 });
+  const [portalNotifications, setPortalNotifications] = useState([]);
+  const [notificationMeta, setNotificationMeta] = useState({ unreadCount: 0, totalCount: 0 });
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   const loadUsers = useCallback(async () => {
     if (isDummyToken()) return;
@@ -745,7 +759,101 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
   const currentView = config.nav.includes(view) || utilityViews.includes(view) ? view : "Dashboard";
   const sidebarNavItems = config.nav;
   const activeNavIndex = Math.max(sidebarNavItems.indexOf(currentView), 0);
-  const unreadCount = notifications.filter((item) => item[2]).length;
+  const unreadCount = notificationMeta.unreadCount;
+
+  const loadNotifications = useCallback(async () => {
+    if (!loggedIn) {
+      setPortalNotifications([]);
+      setNotificationMeta({ unreadCount: 0, totalCount: 0 });
+      return;
+    }
+    const localItems = localNotificationsForRole(role);
+    if (isDummyToken()) {
+      setPortalNotifications(localItems);
+      setNotificationMeta({ unreadCount: localItems.filter((item) => !item.is_read).length, totalCount: localItems.length });
+      return;
+    }
+    setNotificationsLoading(true);
+    try {
+      const payload = await apiFetch("/notifications?perPage=50");
+      const merged = mergeNotifications(payload.data || [], localItems);
+      setPortalNotifications(merged);
+      setNotificationMeta({
+        ...(payload.meta || {}),
+        unreadCount: (payload.meta?.unreadCount || 0) + localItems.filter((item) => !item.is_read).length,
+        totalCount: (payload.meta?.totalCount || 0) + localItems.length
+      });
+    } catch (error) {
+      console.error("Gagal memuat notifikasi", error);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [loggedIn, role]);
+
+  const publishLocalNotification = useCallback((recipientRoles, notification) => {
+    const createdAt = new Date().toISOString();
+    const newItems = recipientRoles.map((recipientRole) => ({
+      id: `local-${crypto.randomUUID()}`,
+      recipient_role: recipientRole,
+      type: notification.type || "generic",
+      title: notification.title,
+      message: notification.message,
+      source_type: notification.source_type,
+      source_id: notification.source_id || null,
+      is_read: false,
+      read_at: null,
+      created_at: createdAt
+    }));
+    const stored = readLocalJson(LOCAL_NOTIFICATIONS_KEY, []);
+    writeLocalJson(LOCAL_NOTIFICATIONS_KEY, [...newItems, ...stored].slice(0, 200));
+    const visibleItems = newItems.filter((item) => item.recipient_role === role);
+    if (visibleItems.length) {
+      setPortalNotifications((current) => mergeNotifications(current, visibleItems));
+      setNotificationMeta((current) => ({
+        ...current,
+        unreadCount: (current.unreadCount || 0) + visibleItems.length,
+        totalCount: (current.totalCount || 0) + visibleItems.length
+      }));
+    }
+  }, [role]);
+
+  const openNotification = useCallback(async (notification) => {
+    if (!notification.is_read && String(notification.id).startsWith("local-")) {
+      const stored = readLocalJson(LOCAL_NOTIFICATIONS_KEY, []);
+      writeLocalJson(LOCAL_NOTIFICATIONS_KEY, stored.map((item) => item.id === notification.id
+        ? { ...item, is_read: true, read_at: new Date().toISOString() }
+        : item));
+      setPortalNotifications((current) => current.map((item) => item.id === notification.id
+        ? { ...item, is_read: true, read_at: new Date().toISOString() }
+        : item));
+      setNotificationMeta((current) => ({ ...current, unreadCount: Math.max((current.unreadCount || 0) - 1, 0) }));
+    } else if (!notification.is_read && !isDummyToken()) {
+      try {
+        await apiFetch(`/notifications/${notification.id}/read`, { method: "POST" });
+        setPortalNotifications((current) => current.map((item) => item.id === notification.id
+          ? { ...item, is_read: true, read_at: new Date().toISOString() }
+          : item));
+        setNotificationMeta((current) => ({ ...current, unreadCount: Math.max((current.unreadCount || 0) - 1, 0) }));
+      } catch (error) {
+        console.error("Gagal menandai notifikasi", error);
+      }
+    }
+    setView(resolveNotificationView(notification.source_type, role));
+  }, [role]);
+
+  const readAllNotifications = useCallback(async () => {
+    const stored = readLocalJson(LOCAL_NOTIFICATIONS_KEY, []);
+    writeLocalJson(LOCAL_NOTIFICATIONS_KEY, stored.map((item) => item.recipient_role === role
+      ? { ...item, is_read: true, read_at: item.read_at || new Date().toISOString() }
+      : item));
+    try {
+      if (!isDummyToken()) await apiFetch("/notifications/read-all", { method: "POST" });
+      setPortalNotifications((current) => current.map((item) => ({ ...item, is_read: true })));
+      setNotificationMeta((current) => ({ ...current, unreadCount: 0 }));
+    } catch (error) {
+      setConfirm({ title: "Notifikasi belum diperbarui", body: error.message });
+    }
+  }, [role]);
 
   useEffect(() => {
     let cancelled = false;
@@ -783,6 +891,7 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
             setOutgoingLetters(normalizeOutgoingWorkflowStatus(hydratedOutgoing));
           });
         }
+        if (event.key === LOCAL_NOTIFICATIONS_KEY) loadNotifications();
       } catch {
         if (event.key === LOCAL_AJUAN_KEY) setAjuanRequests(initialAjuanRequests);
         if (event.key === LOCAL_OUTGOING_KEY) setOutgoingLetters(initialOutgoingLetters);
@@ -791,7 +900,7 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
 
     window.addEventListener("storage", syncAjuanFromStorage);
     return () => window.removeEventListener("storage", syncAjuanFromStorage);
-  }, []);
+  }, [loadNotifications]);
 
   useEffect(() => {
     if (!localDataReady) return;
@@ -802,6 +911,24 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
     if (!localDataReady) return;
     writeLocalJson(LOCAL_OUTGOING_KEY, stripOutgoingAttachmentPayloads(normalizeOutgoingWorkflowStatus(outgoingLetters)));
   }, [outgoingLetters, localDataReady]);
+
+  useEffect(() => {
+    if (!localDataReady) return;
+    const initialKeys = new Set(initialAjuanRequests.map(getAjuanIdentityKey));
+    const notifiedSources = new Set(readLocalJson(LOCAL_NOTIFICATIONS_KEY, []).map((item) => String(item.source_id || "")));
+    const missingNotifications = ajuanRequests.filter((request) => (
+      getAjuanWorkflowStatus(request) === "Menunggu Approval" &&
+      !initialKeys.has(getAjuanIdentityKey(request)) &&
+      !notifiedSources.has(String(request.nomor || ""))
+    ));
+    missingNotifications.forEach((request) => publishLocalNotification(["Operator", "Pimpinan"], {
+      type: "letter_request_submitted",
+      title: "Ajuan surat baru masuk",
+      message: `${request.pemohon || "Pengguna"} mengajukan ${request.jenis || "surat"} - ${request.nomor}.`,
+      source_type: "letter_requests",
+      source_id: request.nomor
+    }));
+  }, [ajuanRequests, localDataReady, publishLocalNotification]);
 
   useEffect(() => {
     if (!localDataReady || (!isDummyToken() && getStoredToken())) return;
@@ -833,6 +960,20 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
       ignore = true;
     };
   }, [loggedIn, role]);
+
+  useEffect(() => {
+    loadNotifications();
+    if (!loggedIn || isDummyToken()) return undefined;
+    const intervalId = window.setInterval(loadNotifications, 30000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") loadNotifications();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [loadNotifications]);
 
   useEffect(() => {
     let ignore = false;
@@ -999,6 +1140,13 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
         getAjuanIdentityKey(item) !== requestKey
       ))
     ]);
+    publishLocalNotification(["Operator", "Pimpinan"], {
+      type: "letter_request_submitted",
+      title: request.revisiDariStatus ? "Revisi ajuan surat dikirim" : "Ajuan surat baru masuk",
+      message: `${request.pemohon || "Pengguna"} mengajukan ${request.jenis || "surat"} - ${request.nomor}.`,
+      source_type: "letter_requests",
+      source_id: request.nomor
+    });
     if (request.revisiDariStatus) {
       setConfirm({ title: "Revisi terkirim", body: `${request.nomor} sudah dikirim kembali ke portal pimpinan untuk approval ulang.` });
       return;
@@ -1021,6 +1169,15 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
       }
       return [{ nomor, ...updates }, ...current];
     });
+    if (["Disetujui", "Ditolak"].includes(updates.status)) {
+      publishLocalNotification(["User", "Operator"], {
+        type: updates.status === "Disetujui" ? "letter_request_approved" : "letter_request_rejected",
+        title: `Ajuan surat ${updates.status.toLowerCase()}`,
+        message: `${nomor} telah ${updates.status.toLowerCase()} oleh Pimpinan.`,
+        source_type: "letter_requests",
+        source_id: nomor
+      });
+    }
   }
 
   function createOutgoingLetter(letter) {
@@ -1339,9 +1496,9 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
           </div>
         </header>
         <section className="content">
-          {currentView === "Dashboard" && (role === "Operator" ? <OperatorDashboard setView={setView} ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} /> : role === "Pimpinan" ? <PimpinanDashboard setView={setView} ajuanRequests={ajuanRequests} /> : role === "Administrator" ? <AdminDashboard setView={setView} userRows={userRows} auditRows={auditRows} apiNotice={apiNotice} /> : <Dashboard config={config} role={role} setView={setView} />)}
+          {currentView === "Dashboard" && (role === "Operator" ? <OperatorDashboard setView={setView} ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} notifications={portalNotifications} onOpenNotification={openNotification} /> : role === "Pimpinan" ? <PimpinanDashboard setView={setView} ajuanRequests={ajuanRequests} notifications={portalNotifications} onOpenNotification={openNotification} /> : role === "Administrator" ? <AdminDashboard setView={setView} userRows={userRows} auditRows={auditRows} apiNotice={apiNotice} /> : <Dashboard config={config} role={role} setView={setView} notifications={portalNotifications} onOpenNotification={openNotification} />)}
           {currentView === "Pengaturan Profil" && <ProfileSettings config={config} profile={currentProfile} role={role} setConfirm={setConfirm} />}
-          {currentView === "Notifikasi" && <Notifications />}
+          {currentView === "Notifikasi" && <Notifications notifications={portalNotifications} meta={notificationMeta} loading={notificationsLoading} onOpen={openNotification} onReadAll={readAllNotifications} />}
           {currentView === "Laporan" && <Reports setConfirm={setConfirm} />}
           {currentView === "Approval" && <Approval setConfirm={setConfirm} ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} onUpdateAjuan={updateAjuanRequest} onUpdateOutgoing={updateOutgoingLetter} />}
           {currentView === "Ajuan Surat" && <AjuanSuratHome setConfirm={setConfirm} onCreateAjuan={createAjuanRequest} currentUserName={config.name} currentUserProfile={currentProfile} ajuanRequests={ajuanRequests} />}
@@ -1392,7 +1549,7 @@ function resolveDemoRole(username) {
   return null;
 }
 
-function Dashboard({ config, role, setView }) {
+function Dashboard({ config, role, setView, notifications = [], onOpenNotification }) {
   return (
     <section className="dashboardPage">
       <div className="dashboardTitle">
@@ -1439,19 +1596,7 @@ function Dashboard({ config, role, setView }) {
         </article>
         <article className="dashPanel notificationsPanel">
           <PanelHeader title="Notifikasi Terbaru" action="Lihat semua" onClick={() => setView("Notifikasi")} />
-          <div className="dashNoticeList">
-            {[
-              ["mail", "Disposisi baru dari Kepala Bagian", "Surat Permohonan - AJ/2025/05/00127", "10 menit lalu", "orange"],
-              ["check", "Ajuan surat disetujui", "Surat Izin Penelitian - AJ/2025/05/00128", "1 jam lalu", "green"],
-              ["doc", "Ajuan surat sedang diproses", "Surat Tugas - AJ/2025/05/00127", "2 jam lalu", "purple"]
-            ].map(([, title, body, time, tone]) => (
-              <div className="dashNotice" key={title}>
-                <span className={`noticeIcon ${tone}`}><LineIcon name="bell" /></span>
-                <div className="noticeText"><strong>{title}</strong><small>{body}</small><time>{time}</time></div>
-                <time>{time}</time><b />
-              </div>
-            ))}
-          </div>
+          <NotificationPreview notifications={notifications} onOpen={onOpenNotification} />
         </article>
         <article className="dashPanel trendPanel">
           <PanelHeader title="Tren Ajuan Surat (Bulanan)" action="12 Bulan Terakhir" />
@@ -1545,7 +1690,7 @@ function buildOperatorNotices(ajuanRequests = [], outgoingLetters = []) {
   return [...waitingAjuan, ...numberingAjuan, ...incomingNotices, ...outgoingWaiting].slice(0, 4);
 }
 
-function OperatorDashboard({ setView, ajuanRequests = [], outgoingLetters = [] }) {
+function OperatorDashboard({ setView, ajuanRequests = [], outgoingLetters = [], notifications = [], onOpenNotification }) {
   const cards = [
     ["Ajuan Masuk", "27", "Monitoring ajuan", "inbox", "blue", "Ajuan Masuk"],
     ["Surat Masuk", "124", "Email dan manual", "mail", "purple", "Surat Masuk"],
@@ -1598,22 +1743,7 @@ function OperatorDashboard({ setView, ajuanRequests = [], outgoingLetters = [] }
 
         <article className="dashPanel notificationsPanel">
           <PanelHeader title="Notifikasi Operator" action="Lihat semua" onClick={() => setView("Notifikasi")} />
-          <div className="dashNoticeList">
-            {notices.map(({ icon, title, body, time, tone, target }) => (
-              <div className="dashNotice" key={title}>
-                <span className={`noticeIcon ${tone}`}><LineIcon name={icon} /></span>
-                <div className="noticeText"><strong>{title}</strong><small>{body}</small><time>{time}</time></div>
-                <time>{time}</time><button type="button" onClick={() => setView(target)} aria-label={`Buka ${target}`} />
-              </div>
-            ))}
-            {notices.length === 0 && (
-              <div className="dashNotice">
-                <span className="noticeIcon green"><LineIcon name="check" /></span>
-                <div className="noticeText"><strong>Tidak ada notifikasi baru</strong><small>Semua pekerjaan operator sudah mengikuti data terbaru.</small><time>Saat ini</time></div>
-                <time>Saat ini</time><b />
-              </div>
-            )}
-          </div>
+          <NotificationPreview notifications={notifications} onOpen={onOpenNotification} />
         </article>
 
         <article className="dashPanel trendPanel">
@@ -1656,7 +1786,7 @@ function OperatorDashboard({ setView, ajuanRequests = [], outgoingLetters = [] }
   );
 }
 
-function PimpinanDashboard({ setView, ajuanRequests = [] }) {
+function PimpinanDashboard({ setView, ajuanRequests = [], notifications = [], onOpenNotification }) {
   const waitingAjuan = ajuanRequests.filter((item) => item.status === "Menunggu Approval");
   const cards = [
     ["Review Masuk", "17", "Surat perlu dibaca", "mail", "blue", "Surat Masuk"],
@@ -1700,6 +1830,7 @@ function PimpinanDashboard({ setView, ajuanRequests = [] }) {
       <section className="dashboardGrid">
         <article className="dashPanel">
           <PanelHeader title="Surat Masuk Perlu Review" action="Lihat semua" onClick={() => setView("Surat Masuk")} />
+          <div className="dashboardTableScroll">
           <table className="dashboardTable pimpinanReviewTable">
             <thead><tr><th>Agenda</th><th>Nomor Surat</th><th>Pengirim</th><th>Perihal</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
@@ -1710,19 +1841,12 @@ function PimpinanDashboard({ setView, ajuanRequests = [] }) {
               ))}
             </tbody>
           </table>
+          </div>
         </article>
 
         <article className="dashPanel notificationsPanel">
-          <PanelHeader title="Agenda Pimpinan" action="Disposisi" onClick={() => setView("Disposisi")} />
-          <div className="dashNoticeList">
-            {agenda.map(([title, body], index) => (
-              <div className="dashNotice" key={title}>
-                <span className={`noticeIcon ${index === 0 ? "orange" : index === 1 ? "green" : "purple"}`}><LineIcon name="bell" /></span>
-                <div className="noticeText"><strong>{title}</strong><small>{body}</small><time>Hari ini</time></div>
-                <time>Hari ini</time><b />
-              </div>
-            ))}
-          </div>
+          <PanelHeader title="Notifikasi Pimpinan" action="Lihat semua" onClick={() => setView("Notifikasi")} />
+          <NotificationPreview notifications={notifications} onOpen={onOpenNotification} />
         </article>
 
         <article className="dashPanel trendPanel">
@@ -1873,6 +1997,8 @@ function OperatorAjuanMasuk({ setConfirm, ajuanRequests, onUpdateAjuan }) {
   const [statusFilter, setStatusFilter] = useState(null);
   const [selectedAjuan, setSelectedAjuan] = useState(null);
   const [ajuanSearch, setAjuanSearch] = useState("");
+  const [ajuanPage, setAjuanPage] = useState(1);
+  const ajuanPerPage = 10;
   const summary = [
     ["Menunggu Approval", String(ajuanRequests.filter((item) => getAjuanWorkflowStatus(item) === "Menunggu Approval").length), "Di portal pimpinan", "send", "purple"],
     ["Disetujui", String(ajuanRequests.filter((item) => getAjuanWorkflowStatus(item) === "Disetujui").length), "Perlu penomoran", "check", "green"],
@@ -1885,6 +2011,10 @@ function OperatorAjuanMasuk({ setConfirm, ajuanRequests, onUpdateAjuan }) {
     const matchesSearch = row.join(" ").toLowerCase().includes(ajuanSearch.toLowerCase());
     return matchesStatus && matchesSearch;
   });
+  const ajuanTotalPages = Math.max(Math.ceil(filteredRows.length / ajuanPerPage), 1);
+  const visibleRows = filteredRows.slice((ajuanPage - 1) * ajuanPerPage, ajuanPage * ajuanPerPage);
+  const ajuanRangeStart = filteredRows.length ? (ajuanPage - 1) * ajuanPerPage + 1 : 0;
+  const ajuanRangeEnd = Math.min(ajuanPage * ajuanPerPage, filteredRows.length);
 
   if (selectedAjuan) {
     return <AjuanMasukDetail ajuan={selectedAjuan} detail={selectedAjuan[6]} onBack={() => setSelectedAjuan(null)} setConfirm={setConfirm} onUpdateAjuan={onUpdateAjuan} />;
@@ -1917,9 +2047,9 @@ function OperatorAjuanMasuk({ setConfirm, ajuanRequests, onUpdateAjuan }) {
           <div className="ajuanListTools">
             <label className="ajuanSearchBox">
               <LineIcon name="search" />
-              <input value={ajuanSearch} onChange={(event) => setAjuanSearch(event.target.value)} placeholder="Cari nama, unit, atau jenis surat..." />
+              <input value={ajuanSearch} onChange={(event) => { setAjuanSearch(event.target.value); setAjuanPage(1); }} placeholder="Cari nama, unit, atau jenis surat..." />
             </label>
-            <select value={statusFilter || ""} onChange={(event) => setStatusFilter(event.target.value || null)}>
+            <select value={statusFilter || ""} onChange={(event) => { setStatusFilter(event.target.value || null); setAjuanPage(1); }}>
               <option value="">Semua Status</option>
               {summary.map(([label]) => <option key={label} value={label}>{label}</option>)}
             </select>
@@ -1930,9 +2060,9 @@ function OperatorAjuanMasuk({ setConfirm, ajuanRequests, onUpdateAjuan }) {
             <table className="dashboardTable ajuanHistoryTable operatorAjuanTable">
               <thead><tr><th>No</th><th>Nama Pemohon</th><th>Jenis Surat</th><th>Unit/Bagian</th><th>Tanggal</th><th>Status</th><th>Aksi</th></tr></thead>
               <tbody>
-                {filteredRows.map((row, index) => (
+                {visibleRows.map((row, index) => (
                   <tr key={row[0]}>
-                    <td>{index + 1}</td><td>{row[2]}</td><td>{row[1]}</td><td>{row[3]}</td><td>{row[4]}</td><td><Status text={row[5]} /></td>
+                    <td>{(ajuanPage - 1) * ajuanPerPage + index + 1}</td><td>{row[2]}</td><td>{row[1]}</td><td>{row[3]}</td><td>{row[4]}</td><td><Status text={row[5]} /></td>
                     <td>
                       <div className="operatorActions">
                         <button className="viewBtn edit" onClick={() => setSelectedAjuan(row)} aria-label={`Buka detail ${row[0]}`}><LineIcon name="edit" /></button>
@@ -1943,8 +2073,8 @@ function OperatorAjuanMasuk({ setConfirm, ajuanRequests, onUpdateAjuan }) {
               </tbody>
             </table>
             <div className="ajuanListFooter">
-              <span>Menampilkan {filteredRows.length} dari {rows.length} data</span>
-              <div><button disabled>Sebelumnya</button><button className="active">1</button><button>Berikutnya</button></div>
+              <span>Menampilkan {ajuanRangeStart}–{ajuanRangeEnd} dari {filteredRows.length} data</span>
+              <div><button disabled={ajuanPage <= 1} onClick={() => setAjuanPage((page) => Math.max(page - 1, 1))}>Sebelumnya</button>{Array.from({ length: ajuanTotalPages }, (_, index) => index + 1).map((page) => <button className={page === ajuanPage ? "active" : ""} key={page} onClick={() => setAjuanPage(page)}>{page}</button>)}<button disabled={ajuanPage >= ajuanTotalPages} onClick={() => setAjuanPage((page) => Math.min(page + 1, ajuanTotalPages))}>Berikutnya</button></div>
             </div>
           </>
         ) : (
@@ -1952,7 +2082,7 @@ function OperatorAjuanMasuk({ setConfirm, ajuanRequests, onUpdateAjuan }) {
             <LineIcon name="search" />
             <strong>Data ajuan tidak ditemukan</strong>
             <p>Coba ubah kata kunci pencarian atau pilih semua status.</p>
-            <button className="softBtn" onClick={() => { setAjuanSearch(""); setStatusFilter(null); }}>Reset Filter</button>
+            <button className="softBtn" onClick={() => { setAjuanSearch(""); setStatusFilter(null); setAjuanPage(1); }}>Reset Filter</button>
           </div>
         )}
       </article>
@@ -1988,6 +2118,7 @@ function AjuanMasukDetail({ ajuan, detail, onBack, setConfirm, onUpdateAjuan }) 
   };
   const approvalAttachments = getAjuanApprovalAttachments(displayedRequestDetail);
   const finalAttachments = getAjuanFinalAttachments(displayedRequestDetail);
+  const hasPimpinanApprovalDocument = approvalAttachments.length > 0 && ["Disetujui", "Selesai"].includes(status);
 
   return (
     <section className="requestDetailPage">
@@ -2080,6 +2211,7 @@ function AjuanMasukDetail({ ajuan, detail, onBack, setConfirm, onUpdateAjuan }) 
             </article>
           )}
 
+          {!hasPimpinanApprovalDocument && (
           <article className="requestCard">
             <h2><LineIcon name="upload" /> Lampiran Dokumen</h2>
             <div className="attachmentList">
@@ -2101,6 +2233,7 @@ function AjuanMasukDetail({ ajuan, detail, onBack, setConfirm, onUpdateAjuan }) 
               })}
             </div>
           </article>
+          )}
 
           {finalAttachments.length > 0 && (
             <article className="requestCard">
@@ -3164,6 +3297,14 @@ function getOperatorIncomingDetail(row) {
     documentUploadedAt: row.detail?.documentUploadedAt || null,
     summary: row.detail?.summary || perihal || "-"
   };
+}
+
+function localNotificationsForRole(role) {
+  return readLocalJson(LOCAL_NOTIFICATIONS_KEY, []).filter((item) => item.recipient_role === role);
+}
+
+function mergeNotifications(backendItems, localItems) {
+  return [...backendItems, ...localItems].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
 function getOperatorIncomingHistory(detail) {
@@ -5117,7 +5258,7 @@ function AjuanSuratHome({ setConfirm, onCreateAjuan, currentUserName, currentUse
 
       {!historyOnly && <section className="ajuanStatusGrid" aria-label="Ringkasan Status Ajuan">
         {statusCards.map(([label, value, meta, icon, tone]) => (
-          <button type="button" className={`ajuanStatusCard clickable ${tone}`} key={label} onClick={() => setStatusFilter(label)} aria-label={`Filter ajuan ${label}`}>
+          <button type="button" className={`ajuanStatusCard clickable ${tone}`} key={label} onClick={() => { setStatusFilter(label); setAjuanPage(1); }} aria-label={`Filter ajuan ${label}`}>
             <span className="icon3d">{iconSymbol(icon)}</span>
             <div>
               <small>{label}</small>
@@ -9025,22 +9166,36 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
 
 function Approval({ setConfirm, ajuanRequests = [], outgoingLetters = [], onUpdateAjuan, onUpdateOutgoing }) {
   const [approvalAction, setApprovalAction] = useState(null);
+  const [approvalSearch, setApprovalSearch] = useState("");
+  const [approvalFilter, setApprovalFilter] = useState("Semua Status");
+  const [approvalPage, setApprovalPage] = useState(1);
+  const approvalPerPage = 6;
   const approvalAjuanRequests = getPimpinanApprovalAjuanRequests(ajuanRequests);
-  const ajuanApprovalRows = approvalAjuanRequests
+  const ajuanApprovalItems = approvalAjuanRequests
     .map((item) => ({
       row: [item.nomor, item.jenis, item.pemohon, item.judul || item.keterangan || "-", item.status],
-      source: item
+      source: item,
+      type: "ajuan"
     }));
   const normalizedOutgoingLetters = normalizeOutgoingWorkflowStatus(outgoingLetters);
-  const outgoingApprovalRows = normalizedOutgoingLetters
-    .filter((letter) => letter.status === "Menunggu Approval")
+  const outgoingApprovalItems = normalizedOutgoingLetters
+    .filter((letter) => ["Menunggu Approval", "Disetujui", "Ditolak"].includes(letter.status))
     .map((letter) => ({
       row: outgoingLetterToRow(letter),
-      source: letter
+      source: letter,
+      type: "surat"
     }));
-  const approvalRows = [...ajuanApprovalRows, ...outgoingApprovalRows]
-    .sort((a, b) => getApprovalSortTime(b.source) - getApprovalSortTime(a.source))
-    .map((item) => item.row);
+  const approvalItems = [...ajuanApprovalItems, ...outgoingApprovalItems]
+    .sort((a, b) => getApprovalSortTime(b.source) - getApprovalSortTime(a.source));
+  const normalizedSearch = approvalSearch.trim().toLowerCase();
+  const filteredApprovalItems = approvalItems.filter(({ row }) => (
+    (!normalizedSearch || row.slice(0, 4).some((value) => String(value || "").toLowerCase().includes(normalizedSearch))) &&
+    (approvalFilter === "Semua Status" || row[4] === approvalFilter)
+  ));
+  const approvalTotalPages = Math.max(Math.ceil(filteredApprovalItems.length / approvalPerPage), 1);
+  const visibleApprovalItems = filteredApprovalItems.slice((approvalPage - 1) * approvalPerPage, approvalPage * approvalPerPage);
+  const approvedCount = approvalItems.filter(({ row }) => row[4] === "Disetujui").length;
+  const revisionCount = approvalItems.filter(({ row }) => row[4] === "Ditolak").length;
 
   if (approvalAction) {
     if (approvalAction.type === "ajuan") {
@@ -9057,14 +9212,35 @@ function Approval({ setConfirm, ajuanRequests = [], outgoingLetters = [], onUpda
   }
 
   return (
-    <section className="previewLayout approvalWideLayout">
-      <article className="tableShell">
-        <div className="rowBetween"><h3>Daftar Approval</h3><span className="status waiting">{approvalRows.length} item</span></div>
+    <section className="approvalPage approvalWideLayout">
+      <header className="approvalPageTitle">
+        <h1>Approval Surat</h1>
+        <p>Tinjau dan setujui permohonan serta surat masuk maupun surat keluar.</p>
+      </header>
+
+      <section className="approvalSummaryGrid">
+        <ApprovalSummaryCard icon="clock" tone="blue" label="Menunggu Approval" value={approvalItems.filter(({ row }) => row[4] === "Menunggu Approval").length} note="Surat menunggu keputusan" active={approvalFilter === "Menunggu Approval"} onClick={() => { setApprovalFilter("Menunggu Approval"); setApprovalPage(1); }} />
+        <ApprovalSummaryCard icon="check" tone="green" label="Disetujui" value={approvedCount} note="Total surat telah disetujui" active={approvalFilter === "Disetujui"} onClick={() => { setApprovalFilter("Disetujui"); setApprovalPage(1); }} />
+        <ApprovalSummaryCard icon="edit" tone="orange" label="Revisi" value={revisionCount} note="Menunggu perbaikan" active={approvalFilter === "Ditolak"} onClick={() => { setApprovalFilter("Ditolak"); setApprovalPage(1); }} />
+      </section>
+
+      <article className="tableShell approvalListCard">
+        <div className="approvalListToolbar">
+          <h3>Daftar Surat untuk Approval</h3>
+          <div className="approvalListControls">
+            <label className="approvalSearch"><LineIcon name="search" /><input value={approvalSearch} onChange={(event) => { setApprovalSearch(event.target.value); setApprovalPage(1); }} placeholder="Cari nomor, perihal, atau pemohon..." /></label>
+            <label className="approvalFilter"><LineIcon name="filter" /><select value={approvalFilter} onChange={(event) => { setApprovalFilter(event.target.value); setApprovalPage(1); }}><option>Semua Status</option><option>Menunggu Approval</option><option>Disetujui</option><option>Ditolak</option></select></label>
+          </div>
+        </div>
         <ApprovalTable
-          data={approvalRows}
-          onProcess={(row) => {
-            const ajuan = approvalAjuanRequests.find((item) => item.nomor === row[0]);
-            setApprovalAction(ajuan ? { type: "ajuan", item: ajuan } : { type: "surat", mode: "process", item: row });
+          items={visibleApprovalItems}
+          page={approvalPage}
+          totalPages={approvalTotalPages}
+          totalCount={filteredApprovalItems.length}
+          perPage={approvalPerPage}
+          onPageChange={setApprovalPage}
+          onProcess={({ row, source, type }) => {
+            setApprovalAction(type === "ajuan" ? { type: "ajuan", item: source } : { type: "surat", mode: "process", item: row });
           }}
         />
       </article>
@@ -9072,34 +9248,42 @@ function Approval({ setConfirm, ajuanRequests = [], outgoingLetters = [], onUpda
   );
 }
 
-function ApprovalTable({ data, onProcess }) {
+function ApprovalSummaryCard({ icon, tone, label, value, note, active, onClick }) {
+  return <button type="button" className={`approvalSummaryCard ${tone}${active ? " active" : ""}`} onClick={onClick} aria-pressed={active}><span><LineIcon name={icon} /></span><div><small>{label}</small><strong>{value}</strong><p>{note}</p></div></button>;
+}
+
+function ApprovalTable({ items, onProcess, page, totalPages, totalCount, perPage, onPageChange }) {
+  const rangeStart = totalCount ? (page - 1) * perPage + 1 : 0;
+  const rangeEnd = Math.min(page * perPage, totalCount);
   return (
     <>
       <div className="tableScroll">
-        <table>
+        <table className="approvalTable approvalReferenceTable">
           <thead>
             <tr>
-              {["Nomor", "Jenis", "Pemohon/Tujuan", "Perihal", "Status"].map((head) => <th key={head}>{head}</th>)}
+              {["Nomor", "Jenis", "Pemohon", "Perihal", "Status"].map((head) => <th key={head}>{head}</th>)}
               <th>Aksi</th>
             </tr>
           </thead>
           <tbody>
-            {data.map((row) => (
-              <tr key={row[0]}>
-                <td>{row[0]}</td>
+            {items.map((item) => {
+              const { row, source } = item;
+              return <tr key={`${item.type}-${row[0]}`}>
+                <td><strong>{row[0]}</strong><small>{source.tanggal || source.tanggalInput || "Tanggal belum tersedia"}</small></td>
                 <td>{row[1]}</td>
-                <td>{row[2]}</td>
+                <td><strong>{row[2]}</strong><small>{source.unit || source.tujuan || "-"}</small></td>
                 <td>{row[3]}</td>
                 <td><Status text={row[4]} /></td>
                 <td>
-                  <button className="softBtn" onClick={() => onProcess(row)}>Proses Approval</button>
+                  <button className={row[4] === "Menunggu Approval" ? "primaryBtn approvalActionBtn" : "softBtn approvalActionBtn"} onClick={() => onProcess(item)}>{row[4] === "Menunggu Approval" ? "Proses Approval" : "Review"}</button>
                 </td>
-              </tr>
-            ))}
+              </tr>;
+            })}
+            {items.length === 0 && <tr><td className="approvalEmpty" colSpan={6}>Tidak ada surat yang sesuai dengan pencarian atau filter.</td></tr>}
           </tbody>
         </table>
       </div>
-      <div className="pagination"><button className="ghostBtn">Sebelumnya</button><span>Halaman 1 dari 4</span><button className="ghostBtn">Berikutnya</button></div>
+      <div className="approvalPagination"><span>Menampilkan {rangeStart}–{rangeEnd} dari {totalCount} data</span><div><button type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>‹</button><b>{page}</b><button type="button" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>›</button></div></div>
     </>
   );
 }
@@ -9161,7 +9345,7 @@ function isAjuanReadyForPimpinanApproval(item) {
 
 function getPimpinanApprovalAjuanRequests(ajuanRequests) {
   const forwardedRequests = ajuanRequests
-    .filter(isAjuanReadyForPimpinanApproval)
+    .filter((item) => isAjuanReadyForPimpinanApproval(item) || ["Disetujui", "Ditolak"].includes(item.status))
     .map((item) => {
       const applicantProfile = profileDirectory[item.pemohon] || {};
       return {
@@ -9169,7 +9353,7 @@ function getPimpinanApprovalAjuanRequests(ajuanRequests) {
         unit: applicantProfile.unit || item.unit,
         email: applicantProfile.email || item.email,
         phone: applicantProfile.phone || item.phone,
-        status: "Menunggu Approval",
+        status: item.status === "Diproses" ? "Menunggu Approval" : item.status,
         diteruskanKe: item.diteruskanKe || "Dewi Pimpinan"
       };
     });
@@ -9200,6 +9384,7 @@ function getPimpinanApprovalAjuanRequests(ajuanRequests) {
 }
 
 function AjuanApprovalProcess({ detail, onBack, setConfirm, onUpdateAjuan }) {
+  const isRejected = detail.status === "Ditolak";
   const [decisionMode, setDecisionMode] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
   const [rejectionNote, setRejectionNote] = useState("");
@@ -9297,16 +9482,19 @@ function AjuanApprovalProcess({ detail, onBack, setConfirm, onUpdateAjuan }) {
         </div>
       </header>
 
-      <section className="ajuanDetailGrid requestLayout">
+      <section className={isRejected ? "ajuanDetailGrid requestLayout rejectedReviewLayout" : "ajuanDetailGrid requestLayout"}>
         <div className="requestDetailMain">
           <article className="requestCard">
-            <h2><LineIcon name="clipboard" /> Ringkasan Ajuan</h2>
-            <div className="requestRows">
+            <h2><LineIcon name="clipboard" /> Data Ajuan</h2>
+            <div className="approvalDataGrid">
+              <DetailItem icon="doc" label="Nomor Ajuan" value={approvalSummary.nomor} />
+              <DetailItem icon="doc" label="Nomor Surat" value={getAjuanNomorSurat(approvalSummary)} />
+              <DetailItem icon="info" label="Jenis Surat" value={approvalSummary.jenis} />
+              <DetailItem icon="calendar" label="Tanggal Ajuan" value={approvalSummary.tanggal} />
               <DetailItem icon="user" label="Pemohon" value={approvalSummary.pemohon} />
-              <DetailItem icon="briefcase" label="Unit Kerja" value={approvalSummary.unit} />
-              <DetailItem icon="doc" label="Jenis Surat" value={approvalSummary.jenis} />
-              <DetailItem icon="calendar" label="Tanggal" value={approvalSummary.tanggal} />
-              <DetailItem icon="edit" label="Judul" value={approvalSummary.judul || "-"} wide />
+              <DetailItem icon="bank" label="Tujuan Surat" value={approvalSummary.tujuan || "-"} />
+              <DetailItem icon="users" label="Tembusan" value={approvalSummary.tembusan?.length ? approvalSummary.tembusan.join(", ") : "-"} />
+              <DetailItem icon="doc" label="Perihal" value={approvalSummary.judul || approvalSummary.jenis || "-"} />
             </div>
           </article>
           <article className="requestCard">
@@ -9331,7 +9519,7 @@ function AjuanApprovalProcess({ detail, onBack, setConfirm, onUpdateAjuan }) {
             </div>
           </article>
         </div>
-        <aside className="requestSide">
+        {!isRejected && <aside className="requestSide">
           <article className="requestActionCard verificationActive">
             <h2><LineIcon name="shield" /> Keputusan Pimpinan</h2>
             <p>Pilih keputusan terlebih dahulu. Form catatan dan dokumen akan muncul sesuai keputusan.</p>
@@ -9378,7 +9566,7 @@ function AjuanApprovalProcess({ detail, onBack, setConfirm, onUpdateAjuan }) {
               </div>
             )}
           </article>
-        </aside>
+        </aside>}
       </section>
       {previewAttachment && <AttachmentPreviewModal attachment={previewAttachment} detail={detail} onClose={() => setPreviewAttachment(null)} />}
     </section>
@@ -9755,8 +9943,60 @@ function AdminBackup({ setConfirm }) {
   );
 }
 
-function Notifications() {
-  return <section className="gridTwo"><article className="panel"><div className="rowBetween"><h3>Notifikasi Internal</h3><span className="status waiting">4 pesan</span></div><NoticeList /></article><article className="panel"><h3>Riwayat Status</h3><div className="timeline">{["Login berhasil", "Ajuan surat dikirim", "Surat diteruskan", "Disposisi dibuat"].map((item) => <div className="timelineItem" key={item}><i /><div><strong>{item}</strong><span>Tercatat di audit trail Asia/Jakarta</span></div></div>)}</div></article></section>;
+function resolveNotificationView(sourceType, role) {
+  if (sourceType === "incoming_letters" || sourceType === "email_messages") return "Surat Masuk";
+  if (sourceType === "dispositions") return role === "User" ? "Disposisi Masuk" : "Disposisi";
+  if (sourceType === "letter_requests") {
+    if (role === "Operator") return "Ajuan Masuk";
+    if (role === "Pimpinan") return "Approval";
+    return "Ajuan Surat";
+  }
+  if (sourceType === "outgoing_letters") return role === "Pimpinan" ? "Approval" : "Surat Keluar";
+  return "Dashboard";
+}
+
+function notificationTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Baru saja";
+  const seconds = Math.max(Math.floor((Date.now() - date.getTime()) / 1000), 0);
+  if (seconds < 60) return "Baru saja";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} menit lalu`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} jam lalu`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)} hari lalu`;
+  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(date);
+}
+
+function NotificationPreview({ notifications = [], onOpen }) {
+  const latest = notifications.slice(0, 3);
+  return (
+    <div className="dashNoticeList">
+      {latest.map((notification) => (
+        <button type="button" className={`dashNotice notificationButton${notification.is_read ? "" : " unread"}`} key={notification.id} onClick={() => onOpen(notification)}>
+          <span className="noticeIcon"><LineIcon name="bell" /></span>
+          <span className="noticeText"><strong>{notification.title}</strong><small>{notification.message}</small><time>{notificationTime(notification.created_at)}</time></span>
+        </button>
+      ))}
+      {latest.length === 0 && <div className="notificationEmpty">Belum ada notifikasi untuk akun ini.</div>}
+    </div>
+  );
+}
+
+function Notifications({ notifications = [], meta = {}, loading, onOpen, onReadAll }) {
+  return (
+    <section className="notificationPage">
+      <header className="dashboardTitle">
+        <h1>Notifikasi</h1>
+        <p>Pemberitahuan surat dan pekerjaan yang ditujukan khusus untuk akun Anda.</p>
+      </header>
+      <article className="panel notificationPagePanel">
+        <div className="rowBetween notificationPageHeader">
+          <div><h3>Semua Notifikasi</h3><span>{meta.unreadCount || 0} belum dibaca dari {meta.totalCount || 0} notifikasi</span></div>
+          <button type="button" className="ghostBtn" onClick={onReadAll} disabled={!meta.unreadCount}>Tandai semua dibaca</button>
+        </div>
+        {loading ? <div className="notificationEmpty">Memuat notifikasi...</div> : <NoticeList notifications={notifications} onOpen={onOpen} />}
+      </article>
+    </section>
+  );
 }
 
 function ProfileSettings({ config, profile, role, setConfirm }) {
@@ -9804,8 +10044,15 @@ function ProfileSettings({ config, profile, role, setConfirm }) {
   );
 }
 
-function NoticeList() {
-  return <div className="noticeList">{notifications.map(([title, body, unread]) => <div className={unread ? "notice unread" : "notice"} key={title}><strong>{title}</strong><span>{body}</span></div>)}</div>;
+function NoticeList({ notifications = [], onOpen }) {
+  if (notifications.length === 0) return <div className="notificationEmpty">Belum ada notifikasi untuk akun ini.</div>;
+  return <div className="noticeList">{notifications.map((notification) => (
+    <button type="button" className={notification.is_read ? "notice" : "notice unread"} key={notification.id} onClick={() => onOpen(notification)}>
+      <span className="noticeIcon"><LineIcon name="bell" /></span>
+      <span className="notificationBody"><strong>{notification.title}</strong><span>{notification.message}</span><time>{notificationTime(notification.created_at)}</time></span>
+      <span className="notificationArrow" aria-hidden="true">→</span>
+    </button>
+  ))}</div>;
 }
 
 function Status({ text }) {

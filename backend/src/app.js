@@ -11,6 +11,7 @@ import { emailRouter } from "./routes/email.js";
 import { healthRouter } from "./routes/health.js";
 import { incomingLettersRouter } from "./routes/incoming-letters.js";
 import { metaRouter } from "./routes/meta.js";
+import { notificationsRouter } from "./routes/notifications.js";
 import { usersRouter } from "./routes/users.js";
 
 export function createApp() {
@@ -27,6 +28,7 @@ export function createApp() {
   app.use("/api/users", usersRouter);
   app.use("/api/incoming-letters", incomingLettersRouter);
   app.use("/api/dispositions", dispositionsRouter);
+  app.use("/api/notifications", notificationsRouter);
   app.use("/api/audit-logs", auditLogsRouter);
   app.use("/api/backups", backupsRouter);
   app.use("/api/email", emailRouter);
