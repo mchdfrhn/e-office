@@ -105,7 +105,8 @@ function mapDisposition(row) {
     due_date: row.due_date,
     sent_at: row.sent_at,
     giver_name: row.giver_name,
-    target_user_name: row.target_user_name
+    target_user_name: row.target_user_name,
+    document: row.document
   };
 }
 
@@ -132,11 +133,29 @@ dispositionsRouter.get("/", requireAuth, requireRole("administrator", "operator"
               incoming_letters.agenda_number, incoming_letters.letter_number, incoming_letters.sender,
               incoming_letters.subject,
               giver.full_name AS giver_name,
-              target.full_name AS target_user_name
+              target.full_name AS target_user_name,
+              CASE WHEN document.id IS NULL THEN NULL ELSE jsonb_build_object(
+                'id', document.id,
+                'original_name', document.original_name,
+                'file_size_bytes', document.file_size_bytes,
+                'mime_type', document.mime_type,
+                'uploaded_at', document.uploaded_at,
+                'download_path', '/incoming-letters/' || incoming_letters.id || '/documents/' || document.id || '/download'
+              ) END AS document
        FROM dispositions
        JOIN incoming_letters ON incoming_letters.id = dispositions.incoming_letter_id
        JOIN users giver ON giver.id = dispositions.giver_id
        LEFT JOIN users target ON target.id = dispositions.target_user_id
+       LEFT JOIN LATERAL (
+         SELECT documents.id, documents.original_name, documents.file_size_bytes,
+                documents.mime_type, documents.uploaded_at
+         FROM documents
+         WHERE documents.owner_type = 'incoming_letter'
+           AND documents.owner_id = incoming_letters.id
+           AND documents.deleted_at IS NULL
+         ORDER BY documents.uploaded_at DESC
+         LIMIT 1
+       ) document ON true
        WHERE dispositions.deleted_at IS NULL
          ${roleFilter}
        ORDER BY dispositions.created_at DESC

@@ -143,6 +143,24 @@ async function getAttachmentPayload(key) {
   return value;
 }
 
+async function getAttachmentPayloadByPrefix(prefix) {
+  const db = await openAttachmentDb();
+  if (!db || !prefix) return "";
+  const value = await new Promise((resolve) => {
+    const transaction = db.transaction(ATTACHMENT_STORE_NAME, "readonly");
+    const request = transaction.objectStore(ATTACHMENT_STORE_NAME).openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return resolve("");
+      if (String(cursor.key).startsWith(prefix)) return resolve(cursor.value || "");
+      cursor.continue();
+    };
+    request.onerror = () => resolve("");
+  });
+  db.close();
+  return value;
+}
+
 function makeAttachmentKey(prefix, nomor, file) {
   return `${prefix}:${nomor || "tanpa-nomor"}:${file.name}:${file.size}:${file.lastModified || Date.now()}`;
 }
@@ -841,20 +859,6 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
     setView(resolveNotificationView(notification.source_type, role));
   }, [role]);
 
-  const readAllNotifications = useCallback(async () => {
-    const stored = readLocalJson(LOCAL_NOTIFICATIONS_KEY, []);
-    writeLocalJson(LOCAL_NOTIFICATIONS_KEY, stored.map((item) => item.recipient_role === role
-      ? { ...item, is_read: true, read_at: item.read_at || new Date().toISOString() }
-      : item));
-    try {
-      if (!isDummyToken()) await apiFetch("/notifications/read-all", { method: "POST" });
-      setPortalNotifications((current) => current.map((item) => ({ ...item, is_read: true })));
-      setNotificationMeta((current) => ({ ...current, unreadCount: 0 }));
-    } catch (error) {
-      setConfirm({ title: "Notifikasi belum diperbarui", body: error.message });
-    }
-  }, [role]);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -1498,7 +1502,7 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
         <section className="content">
           {currentView === "Dashboard" && (role === "Operator" ? <OperatorDashboard setView={setView} ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} notifications={portalNotifications} onOpenNotification={openNotification} /> : role === "Pimpinan" ? <PimpinanDashboard setView={setView} ajuanRequests={ajuanRequests} notifications={portalNotifications} onOpenNotification={openNotification} /> : role === "Administrator" ? <AdminDashboard setView={setView} userRows={userRows} auditRows={auditRows} apiNotice={apiNotice} /> : <Dashboard config={config} role={role} setView={setView} notifications={portalNotifications} onOpenNotification={openNotification} />)}
           {currentView === "Pengaturan Profil" && <ProfileSettings config={config} profile={currentProfile} role={role} setConfirm={setConfirm} />}
-          {currentView === "Notifikasi" && <Notifications notifications={portalNotifications} meta={notificationMeta} loading={notificationsLoading} onOpen={openNotification} onReadAll={readAllNotifications} />}
+          {currentView === "Notifikasi" && <Notifications notifications={portalNotifications} meta={notificationMeta} loading={notificationsLoading} onOpen={openNotification} />}
           {currentView === "Laporan" && <Reports setConfirm={setConfirm} />}
           {currentView === "Approval" && <Approval setConfirm={setConfirm} ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} onUpdateAjuan={updateAjuanRequest} onUpdateOutgoing={updateOutgoingLetter} />}
           {currentView === "Ajuan Surat" && <AjuanSuratHome setConfirm={setConfirm} onCreateAjuan={createAjuanRequest} currentUserName={config.name} currentUserProfile={currentProfile} ajuanRequests={ajuanRequests} />}
@@ -2719,15 +2723,15 @@ function buildAttachmentPlaceholder(attachment, detail) {
 
 function downloadAttachment(attachment, detail) {
   const [name, , , dataUrl] = attachment;
+  if (dataUrl) {
+    downloadDataUrl(name, dataUrl);
+    return;
+  }
   const downloadPath = getAttachmentDownloadPath(attachment);
   if (downloadPath) {
     downloadAuthorizedAttachment(attachment).catch((error) => {
       window.alert(error.message || "Dokumen belum dapat diunduh.");
     });
-    return;
-  }
-  if (dataUrl) {
-    downloadDataUrl(name, dataUrl);
     return;
   }
   const placeholder = buildAttachmentPlaceholder(attachment, detail);
@@ -2772,19 +2776,6 @@ function blobToDataUrl(blob) {
 
 async function hydrateAuthorizedAttachment(attachment) {
   if (!attachment || attachment?.[3]) return attachment;
-  const path = getAttachmentDownloadPath(attachment);
-  if (path) {
-    const blob = await fetchAuthorizedDocument(path);
-    return [
-      attachment[0],
-      attachment[1] || formatFileSize(blob.size),
-      attachment[2],
-      await blobToDataUrl(blob),
-      attachment[4] || blob.type,
-      attachment[5],
-      path
-    ];
-  }
   const storageKey = getAttachmentStorageKey(attachment);
   if (storageKey) {
     const dataUrl = await getAttachmentPayload(storageKey);
@@ -2799,6 +2790,27 @@ async function hydrateAuthorizedAttachment(attachment) {
         attachment[6]
       ];
     }
+  }
+  const storageKeyPrefix = attachment?.[7] || "";
+  if (storageKeyPrefix) {
+    const dataUrl = await getAttachmentPayloadByPrefix(storageKeyPrefix);
+    if (dataUrl) {
+      return [attachment[0], attachment[1], attachment[2], dataUrl, attachment[4], storageKey, attachment[6], storageKeyPrefix];
+    }
+  }
+  const path = getAttachmentDownloadPath(attachment);
+  if (path) {
+    const blob = await fetchAuthorizedDocument(path);
+    return [
+      attachment[0],
+      attachment[1] || formatFileSize(blob.size),
+      attachment[2],
+      await blobToDataUrl(blob),
+      attachment[4] || blob.type,
+      attachment[5],
+      path,
+      storageKeyPrefix
+    ];
   }
   return attachment;
 }
@@ -4152,7 +4164,28 @@ function getStoredIncomingAttachmentsForDisposition(item) {
 }
 
 function mapDispositionToUserRow(item) {
-  const lampiran = item.lampiran || item.attachments || getStoredIncomingAttachmentsForDisposition(item);
+  const storedIncomingAttachments = getStoredIncomingAttachmentsForDisposition(item);
+  const apiDocument = item.document;
+  const apiIncomingAttachments = apiDocument?.original_name ? [[
+    apiDocument.original_name,
+    formatFileSize(apiDocument.file_size_bytes || 1),
+    apiDocument.uploaded_at ? `Diunggah operator ${formatDateTime(apiDocument.uploaded_at)}` : "Diunggah operator",
+    "",
+    apiDocument.mime_type || "application/pdf",
+    "",
+    apiDocument.download_path || "",
+    `incoming:${item.agenda_number || item.agenda || ""}:${apiDocument.original_name}:`
+  ]] : [];
+  const suppliedAttachments = item.lampiran || item.attachments || [];
+  const attachmentByName = new Map();
+  [...apiIncomingAttachments, ...storedIncomingAttachments, ...suppliedAttachments].forEach((attachment) => {
+    const name = String(attachment?.[0] || "");
+    if (!name || attachmentByName.has(name)) return;
+    const normalizedAttachment = [...attachment];
+    normalizedAttachment[7] ||= `incoming:${item.agenda_number || item.agenda || ""}:${name}:`;
+    attachmentByName.set(name, normalizedAttachment);
+  });
+  const lampiran = [...attachmentByName.values()];
   const row = [
     item.disposition_number || item.nomor || generateDispositionNumber(),
     item.instruction || item.instruksi || item.subject || "Instruksi disposisi",
@@ -5956,6 +5989,8 @@ function DisposisiMasukHome({ setConfirm }) {
   const [followupDraft, setFollowupDraft] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
+  const [documentActionError, setDocumentActionError] = useState("");
+  const [activeDocumentAction, setActiveDocumentAction] = useState("");
   const [dispositionItems, setDispositionItems] = useState(defaultUserDispositionRows);
   const [copyItems, setCopyItems] = useState(defaultUserCopyRows);
 
@@ -6043,12 +6078,7 @@ function DisposisiMasukHome({ setConfirm }) {
     const nomorSurat = detail.nomorSurat || id.replace("DSP", "SM");
     const perihal = detail.perihal || instruksi;
     const pengirim = detail.pengirim || "SMKN 1 BOJONGPICUNG";
-    const sourceAttachments = detail.lampiran?.length ? detail.lampiran : [["Surat_Masuk_Diteruskan_Operator.pdf", "245 KB", "Diteruskan operator ke pimpinan"]];
-    const hasDispositionNote = sourceAttachments.some((attachment) => String(attachment?.[0] || "").toLowerCase().includes("disposisi"));
-    const dispositionAttachments = hasDispositionNote ? sourceAttachments : [
-      ...sourceAttachments,
-      ["Nota_Disposisi_Pimpinan.pdf", "180 KB", "Instruksi disposisi dari pimpinan"]
-    ];
+    const sourceAttachments = detail.lampiran?.filter((attachment) => hasStoredAttachmentPayload(attachment)) || [];
     return {
       id,
       instruksi,
@@ -6066,7 +6096,7 @@ function DisposisiMasukHome({ setConfirm }) {
       tujuan: "Untuk Budi Santoso (Bagian Kemahasiswaan)",
       perihal,
       catatan: detail.catatan || detail.instruksi || `Mohon ditindaklanjuti sesuai prosedur dan koordinasikan dengan pihak terkait.`,
-      lampiran: dispositionAttachments
+      lampiran: sourceAttachments
     };
   };
   const openFollowup = (row = dispositionItems[0]) => {
@@ -6075,19 +6105,45 @@ function DisposisiMasukHome({ setConfirm }) {
   };
   const openDocument = (row) => {
     setFollowupDraft(null);
+    setDocumentActionError("");
     setSelectedDocument(buildDispositionDetail(row));
   };
-  const selectedDocumentSpec = selectedDocument ? {
-    title: selectedDocument.jenis,
-    filename: `${selectedDocument.nomor}.pdf`,
-    number: selectedDocument.nomor,
-    kind: selectedDocument.jenis,
-    subject: selectedDocument.perihal,
-    party: selectedDocument.pemberi,
-    status: selectedDocument.status,
-    summary: selectedDocument.catatan,
-    meta: `Disposisi ${selectedDocument.id}`
-  } : null;
+  const previewDispositionAttachment = async (spec) => {
+    setDocumentActionError("");
+    setActiveDocumentAction(`preview:${spec.filename}`);
+    try {
+      if (!spec.attachment) throw new Error("File lampiran asli tidak tersedia.");
+      const attachment = await hydrateAuthorizedAttachment(spec.attachment);
+      if (!attachment?.[3]) throw new Error("Isi file belum dapat dimuat. Silakan muat ulang halaman lalu coba kembali.");
+      setPreviewDocument(attachment);
+    } catch (error) {
+      setDocumentActionError(error.message || "Lampiran asli belum dapat dibuka.");
+    } finally {
+      setActiveDocumentAction("");
+    }
+  };
+  const downloadDispositionAttachment = async (spec) => {
+    setDocumentActionError("");
+    setActiveDocumentAction(`download:${spec.filename}`);
+    try {
+      if (!spec.attachment) throw new Error("File lampiran asli tidak tersedia.");
+      if (getAttachmentDownloadPath(spec.attachment) && getStoredToken() && !isDummyToken()) {
+        await downloadAuthorizedAttachment(spec.attachment);
+      } else {
+        const attachment = await hydrateAuthorizedAttachment(spec.attachment);
+        if (!attachment?.[3]) throw new Error("Isi file belum dapat dimuat. Silakan muat ulang halaman lalu coba kembali.");
+        downloadAttachment(attachment, {
+          judul: spec.title,
+          nomor: spec.number,
+          keterangan: spec.summary
+        });
+      }
+    } catch (error) {
+      setDocumentActionError(error.message || "Lampiran asli belum dapat diunduh.");
+    } finally {
+      setActiveDocumentAction("");
+    }
+  };
   const markCopyRead = (id) => {
     setCopyItems((current) => current.map((row) => {
       if (row[0] !== id) return row;
@@ -6190,19 +6246,11 @@ function DisposisiMasukHome({ setConfirm }) {
             <label className="wide"><span className="followupFieldLabel">Uraian Hasil / Catatan Pelaksanaan <em>*</em></span>
               <textarea rows={4} placeholder="Jelaskan hasil pelaksanaan tindak lanjut, progres, kendala, dan rencana selanjutnya..." required />
             </label>
-            <label className="followupCoordinationField"><span className="followupFieldLabel">Pihak yang Dikoordinasikan</span>
-              <input placeholder="Contoh: Wakil Ketua I, Kepala Jurusan Teknik Sipil" />
-            </label>
-            <div className="followupUploadBox">
+            <div className="followupUploadBox wide">
               <strong>Upload Dokumen Pendukung / Hasil</strong>
               <UploadDropzone accept=".pdf,application/pdf" formats="PDF Maksimal 10 MB" />
             </div>
           </div>
-
-          <label className="followupCheck">
-            <input type="checkbox" required />
-            <span>Saya menyatakan tindak lanjut telah dikerjakan sesuai instruksi pimpinan.</span>
-          </label>
 
           <div className="followupSubmitBar">
             <button type="button" className="softBtn" onClick={() => setFollowupDraft(null)}>Batal</button>
@@ -6260,7 +6308,6 @@ function DisposisiMasukHome({ setConfirm }) {
         attachment: hasStoredAttachmentPayload(attachment) ? attachment : null
       };
     });
-    const primarySpec = documentSpecs[0] || selectedDocumentSpec;
     const detailItems = [
       ["Nomor Agenda", selectedDocument.agenda],
       ["Tanggal Terima", selectedDocument.tanggalTerima],
@@ -6316,10 +6363,18 @@ function DisposisiMasukHome({ setConfirm }) {
                   <strong>{spec.filename}</strong>
                   <small>PDF - {selectedDocument.lampiran[index]?.[1] || "245 KB"}</small>
                 </div>
-                <button type="button" className="softBtn previewDocViewBtn" onClick={() => previewLetterDocument(spec, setPreviewDocument)}><LineIcon name="eye" /> Lihat</button>
-                <button type="button" className="iconBtn previewDocDownloadBtn" onClick={() => downloadLetterDocument(spec)} aria-label={`Unduh ${spec.filename}`}><LineIcon name="download" /></button>
+                <button type="button" className="softBtn previewDocViewBtn" disabled={Boolean(activeDocumentAction)} onClick={() => previewDispositionAttachment(spec)}><LineIcon name="eye" /> {activeDocumentAction === `preview:${spec.filename}` ? "Memuat..." : "Lihat"}</button>
+                <button type="button" className="iconBtn previewDocDownloadBtn" disabled={Boolean(activeDocumentAction)} onClick={() => downloadDispositionAttachment(spec)} aria-label={`Unduh ${spec.filename}`} title="Unduh dokumen"><LineIcon name="download" /></button>
               </article>
             ))}
+            {documentSpecs.length === 0 && (
+              <div className="disposisiEmptyCard">
+                <LineIcon name="doc" />
+                <strong>Lampiran asli belum tersedia</strong>
+                <p>Dokumen akan muncul setelah Operator mengunggah surat dan Pimpinan meneruskannya dalam disposisi.</p>
+              </div>
+            )}
+            {documentActionError && <p className="documentActionError" role="alert">{documentActionError}</p>}
           </div>
         </section>
 
@@ -9992,7 +10047,7 @@ function NotificationPreview({ notifications = [], onOpen }) {
   );
 }
 
-function Notifications({ notifications = [], meta = {}, loading, onOpen, onReadAll }) {
+function Notifications({ notifications = [], meta = {}, loading, onOpen }) {
   return (
     <section className="notificationPage">
       <header className="dashboardTitle">
@@ -10002,7 +10057,6 @@ function Notifications({ notifications = [], meta = {}, loading, onOpen, onReadA
       <article className="panel notificationPagePanel">
         <div className="rowBetween notificationPageHeader">
           <div><h3>Semua Notifikasi</h3><span>{meta.unreadCount || 0} belum dibaca dari {meta.totalCount || 0} notifikasi</span></div>
-          <button type="button" className="ghostBtn" onClick={onReadAll} disabled={!meta.unreadCount}>Tandai semua dibaca</button>
         </div>
         {loading ? <div className="notificationEmpty">Memuat notifikasi...</div> : <NoticeList notifications={notifications} onOpen={onOpen} />}
       </article>

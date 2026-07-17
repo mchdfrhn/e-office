@@ -235,11 +235,15 @@ incomingLettersRouter.post("/", requireAuth, requireRole("administrator", "opera
   }
 });
 
-incomingLettersRouter.get("/:id/documents/:documentId/download", requireAuth, requireRole("administrator", "operator", "pimpinan"), async (request, response, next) => {
+incomingLettersRouter.get("/:id/documents/:documentId/download", requireAuth, requireRole("administrator", "operator", "pimpinan", "user"), async (request, response, next) => {
   try {
-    const roleFilter = request.user.role_code === "pimpinan" ? "AND incoming_letters.forwarded_to = $3" : "";
+    const roleFilter = request.user.role_code === "pimpinan"
+      ? "AND incoming_letters.forwarded_to = $3"
+      : request.user.role_code === "user"
+        ? "AND EXISTS (SELECT 1 FROM dispositions WHERE dispositions.incoming_letter_id = incoming_letters.id AND dispositions.target_user_id = $3 AND dispositions.deleted_at IS NULL)"
+        : "";
     const params = [request.params.id, request.params.documentId];
-    if (request.user.role_code === "pimpinan") params.push(request.user.id);
+    if (["pimpinan", "user"].includes(request.user.role_code)) params.push(request.user.id);
 
     const result = await query(
       `SELECT incoming_letters.id AS incoming_id,

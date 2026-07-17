@@ -12933,6 +12933,7 @@ td {
   background: #ffffff;
   font-size: 10px;
   font-weight: 900;
+  cursor: pointer;
 }
 
 .documentFileItem .iconBtn {
@@ -12945,6 +12946,23 @@ td {
   border-color: #cbdcff;
   color: #0054f4;
   background: #ffffff;
+  cursor: pointer;
+}
+
+.documentFileItem button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.documentActionError {
+  margin: 2px 0 0;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  padding: 9px 12px;
+  color: #b91c1c;
+  background: #fef2f2;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .documentFileItem .iconBtn svg {
@@ -13279,14 +13297,6 @@ td {
   grid-column: 1 / -1;
 }
 
-.followupCoordinationField {
-  align-self: start;
-}
-
-.followupCoordinationField input {
-  margin-top: -2px;
-}
-
 .followupUploadBox .uploadDropzone {
   min-height: 78px;
   border-radius: 8px;
@@ -13315,21 +13325,6 @@ td {
   right: 14px;
   bottom: 10px;
   text-align: right;
-}
-
-.followupCheck {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: #39447f;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.followupCheck input {
-  width: 16px;
-  height: 16px;
-  accent-color: #0054f4;
 }
 
 .followupSubmitBar {
