@@ -2912,22 +2912,22 @@ textarea:focus {
 
 .approvalTable th:nth-child(1),
 .approvalTable td:nth-child(1) {
-  width: 16%;
+  width: 15%;
 }
 
 .approvalTable th:nth-child(2),
 .approvalTable td:nth-child(2) {
-  width: 19%;
+  width: 18%;
 }
 
 .approvalTable th:nth-child(3),
 .approvalTable td:nth-child(3) {
-  width: 17%;
+  width: 16%;
 }
 
 .approvalTable th:nth-child(4),
 .approvalTable td:nth-child(4) {
-  width: 27%;
+  width: 25%;
 }
 
 .approvalTable th:nth-child(5),
@@ -2937,8 +2937,8 @@ textarea:focus {
 
 .approvalTable th:nth-child(6),
 .approvalTable td:nth-child(6) {
-  width: 120px;
-  text-align: right;
+  width: 13%;
+  text-align: center;
 }
 
 .approvalTable td {
@@ -10529,45 +10529,58 @@ td {
 }
 
 .pimpinanIncomingPagination {
-  min-height: 72px;
+  min-height: 58px;
   margin-top: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  border-top: 1px solid #96B3E9;
-  padding: 16px 24px;
+  border-top: 1px solid #edf1f8;
+  padding: 12px 20px;
 }
 
 .pimpinanIncomingPagination > span {
-  color: #282C70;
-  font-size: 14px;
+  color: #667093;
+  font-size: 12px;
   font-weight: 400;
 }
 
 .pimpinanIncomingPagination div {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
+.pimpinanIncomingPagination select,
 .pimpinanIncomingPagination button {
-  min-height: 36px;
-  border: 1px solid #96B3E9;
-  border-radius: 8px;
-  color: #02066F;
+  height: 34px;
+  border: 1px solid #dce5f4;
+  border-radius: 7px;
+  color: #667093;
   background: #ffffff;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
 }
 
-.pimpinanIncomingPagination .ghostBtn {
-  min-width: 108px;
-  padding: 0 15px;
+.pimpinanIncomingPagination select {
+  min-width: 130px;
+  padding: 0 30px 0 12px;
+}
+
+.pimpinanIncomingPagination button {
+  width: 34px;
+  padding: 0;
+  font-size: 17px;
+}
+
+.pimpinanIncomingPagination button:disabled {
+  color: #bdc5d6;
+  background: #fbfcff;
+  cursor: not-allowed;
 }
 
 .pimpinanIncomingPagination button.active {
-  width: 36px;
+  width: 34px;
   padding: 0;
   color: #ffffff;
   border-color: #0C61F1;
@@ -12468,7 +12481,7 @@ td {
 
 .userDispositionRowActions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 12px;
 }

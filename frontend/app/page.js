@@ -3258,6 +3258,11 @@ function OperatorIncomingDetail({ row, onBack, setConfirm }) {
 
 function getOperatorIncomingDetail(row) {
   const [agenda, pengirim, perihal, tanggalMasuk, tujuan, status] = row;
+  const storedDisposition = readLocalDispositions().find((item) => (
+    (item.agenda_number || item.agendaNumber || item.agenda) === agenda ||
+    (row.detail?.letterNumber && (item.letter_number || item.letterNumber || item.nomorSurat) === row.detail.letterNumber) ||
+    (row.detail?.incomingId && (item.incomingLetterId || item.incoming_letter_id) === row.detail.incomingId)
+  ));
   const normalizedAgenda = String(agenda || "");
   const lastNumber = normalizedAgenda.match(/\d+/g)?.at(-1) || "124";
   const fallbackNumber = normalizedAgenda.startsWith("SM/")
@@ -3294,6 +3299,8 @@ function getOperatorIncomingDetail(row) {
     registeredByName: row.detail?.registeredByName || "Operator Persuratan",
     forwardedAt: row.detail?.forwardedAt || null,
     forwardedToName: row.detail?.forwardedToName || tujuan || "Pimpinan",
+    dispositionTargetName: row.detail?.dispositionTargetName || storedDisposition?.target_user_name || storedDisposition?.targetName || storedDisposition?.tujuan || "",
+    dispositionCreatedAt: row.detail?.dispositionCreatedAt || storedDisposition?.created_at || storedDisposition?.createdAt || null,
     documentUploadedAt: row.detail?.documentUploadedAt || null,
     summary: row.detail?.summary || perihal || "-"
   };
@@ -3334,6 +3341,7 @@ function getOperatorIncomingHistory(detail) {
   const registered = formatMoment(detail.registeredAt);
   const uploaded = formatMoment(detail.documentUploadedAt || detail.registeredAt);
   const forwarded = formatMoment(detail.forwardedAt || detail.registeredAt);
+  const disposed = formatMoment(detail.dispositionCreatedAt || detail.forwardedAt || detail.registeredAt);
   const items = [
     {
       ...registered,
@@ -3366,9 +3374,11 @@ function getOperatorIncomingHistory(detail) {
   }
   if (isDisposed) {
     items.push({
-      ...forwarded,
+      ...disposed,
       title: "Disposisi dibuat",
-      description: "Pimpinan memberikan arahan dan meneruskan surat kepada unit atau pihak terkait.",
+      description: detail.dispositionTargetName
+        ? `Surat didisposisikan kepada ${detail.dispositionTargetName} untuk ditindaklanjuti.`
+        : "Surat didisposisikan kepada unit terkait untuk ditindaklanjuti.",
       actor: detail.forwardedToName || "Pimpinan",
       status: isFollowedUp ? "Selesai" : "Didisposisikan",
       tone: isFollowedUp ? "done" : "current"
@@ -4246,6 +4256,8 @@ function mapIncomingLetterToOperatorRow(item) {
     registeredByName: item.registered_by_name || item.registeredByName || "Operator",
     forwardedAt: item.forwarded_at || item.forwardedAt || null,
     forwardedToName: item.forwarded_to_name || item.forwardedToName || target,
+    dispositionTargetName: item.disposition_target_name || item.dispositionTargetName || "",
+    dispositionCreatedAt: item.disposition_created_at || item.dispositionCreatedAt || null,
     summary: item.summary || "",
     documentUploadedAt: document?.uploaded_at || null,
     documentName,
@@ -4461,7 +4473,12 @@ function PimpinanIncomingReview({ setConfirm }) {
                 setIncomingRows((current) => current.map((row) => {
                   if (row[0] !== detail.agenda) return row;
                   const nextRow = [...row.slice(0, 4), "Didisposisikan"];
-                  nextRow.detail = row.detail ? { ...row.detail, status: "Didisposisikan" } : undefined;
+                  nextRow.detail = row.detail ? {
+                    ...row.detail,
+                    status: "Didisposisikan",
+                    dispositionTargetName: form.targetName,
+                    dispositionCreatedAt: saved.created_at || saved.createdAt || new Date().toISOString()
+                  } : undefined;
                   return nextRow;
                 }));
                 setIncomingAction(null);
@@ -6071,33 +6088,6 @@ function DisposisiMasukHome({ setConfirm }) {
     summary: selectedDocument.catatan,
     meta: `Disposisi ${selectedDocument.id}`
   } : null;
-  const markReceived = (id) => {
-    const selectedRow = dispositionItems.find((row) => row[0] === id);
-    setConfirm({
-      title: "Tandai disposisi diterima?",
-      body: `${id} akan ditandai sebagai diterima dan dicatat pada audit trail.`,
-      onConfirm: async () => {
-        try {
-          if (getStoredToken() && !isDummyToken() && selectedRow?.detail?.backendId) {
-            await apiFetch(`/dispositions/${selectedRow.detail.backendId}/receive`, { method: "POST" });
-          }
-        } catch (error) {
-          setConfirm({ title: "Gagal menandai diterima", body: error.message || "Status disposisi belum dapat diperbarui." });
-          return;
-        }
-        setDispositionItems((current) => current.map((row) => {
-          if (row[0] !== id) return row;
-          const nextRow = [...row.slice(0, 5), "Diterima"];
-          nextRow.detail = row.detail;
-          return nextRow;
-        }));
-        writeLocalDispositions(readLocalDispositions().map((item) => (
-          (item.disposition_number || item.nomor) === id ? { ...item, status: "diterima" } : item
-        )));
-        setFollowupDraft((current) => current?.id === id ? { ...current, status: "Diterima" } : current);
-      }
-    });
-  };
   const markCopyRead = (id) => {
     setCopyItems((current) => current.map((row) => {
       if (row[0] !== id) return row;
@@ -6425,12 +6415,7 @@ function DisposisiMasukHome({ setConfirm }) {
                           <LineIcon name="check" /> {status === "Dibaca" ? "Sudah Dibaca" : "Tandai Dibaca"}
                         </button>
                       ) : (
-                        <>
-                          <button type="button" className="softBtn" onClick={() => markReceived(id)} disabled={status !== "Dikirim"}>
-                            <LineIcon name="check" /> {status === "Dikirim" ? "Tandai Diterima" : "Diterima"}
-                          </button>
-                          <button type="button" className="primaryBtn" onClick={() => openFollowup(row)}>Tindak Lanjut <span aria-hidden="true">-&gt;</span></button>
-                        </>
+                        <button type="button" className="primaryBtn" onClick={() => openFollowup(row)}>Tindak Lanjut <span aria-hidden="true">-&gt;</span></button>
                       )}
                     </div>
                   </div>
@@ -8268,13 +8253,27 @@ function DataTable({
   onUserDelete,
   onUserResetPassword
 }) {
+  const isPimpinanIncoming = view === "Surat Masuk Pimpinan";
+  const [pimpinanPage, setPimpinanPage] = useState(1);
+  const [pimpinanPageSize, setPimpinanPageSize] = useState(10);
+  const pimpinanTotalPages = Math.max(Math.ceil(data.length / pimpinanPageSize), 1);
+  const pimpinanStart = data.length ? (pimpinanPage - 1) * pimpinanPageSize + 1 : 0;
+  const pimpinanEnd = Math.min(pimpinanPage * pimpinanPageSize, data.length);
+  const displayedData = isPimpinanIncoming
+    ? data.slice((pimpinanPage - 1) * pimpinanPageSize, pimpinanPage * pimpinanPageSize)
+    : data;
+
+  useEffect(() => {
+    setPimpinanPage((current) => Math.min(current, pimpinanTotalPages));
+  }, [pimpinanTotalPages]);
+
   return (
     <>
       <div className="tableScroll">
         <table className={view === "Surat Masuk Pimpinan" ? "approvalTable pimpinanIncomingReviewTable" : "approvalTable"}>
           <thead><tr>{heads.map((head) => <th key={head}>{head}</th>)}<th>Aksi</th></tr></thead>
           <tbody>
-            {data.map((row) => {
+            {displayedData.map((row) => {
               const displayCells = row.slice(0, heads.length);
               return (
                 <tr key={row[0]}>
@@ -8343,11 +8342,23 @@ function DataTable({
       </div>
       {view === "Surat Masuk Pimpinan" ? (
         <div className="pimpinanIncomingPagination">
-          <span>Menampilkan {data.length} dari {data.length} data</span>
+          <span>Menampilkan {pimpinanStart}–{pimpinanEnd} dari {data.length} data</span>
           <div>
-            <button className="ghostBtn">Sebelumnya</button>
-            <button className="active">1</button>
-            <button className="ghostBtn">Berikutnya</button>
+            <select
+              aria-label="Jumlah data per halaman"
+              value={pimpinanPageSize}
+              onChange={(event) => {
+                setPimpinanPageSize(Number(event.target.value));
+                setPimpinanPage(1);
+              }}
+            >
+              <option value={10}>10 per halaman</option>
+              <option value={25}>25 per halaman</option>
+              <option value={50}>50 per halaman</option>
+            </select>
+            <button type="button" aria-label="Halaman sebelumnya" disabled={pimpinanPage <= 1} onClick={() => setPimpinanPage((page) => page - 1)}>‹</button>
+            <button type="button" className="active" aria-current="page">{pimpinanPage}</button>
+            <button type="button" aria-label="Halaman berikutnya" disabled={pimpinanPage >= pimpinanTotalPages} onClick={() => setPimpinanPage((page) => page + 1)}>›</button>
           </div>
         </div>
       ) : (
