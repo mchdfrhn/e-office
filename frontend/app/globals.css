@@ -6218,9 +6218,85 @@ td {
 
 .incomingDashboardGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(310px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: start;
+}
+
+.incomingGuideDisclosure {
+  border: 1px solid #96B3E9;
+  border-radius: 12px;
+  color: #282C70;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 10px 24px rgba(37, 58, 104, 0.06);
+}
+
+.incomingGuideDisclosure summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+
+.incomingGuideDisclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.incomingGuideDisclosure summary svg {
+  width: 20px;
+  height: 20px;
+  color: #0C61F1;
+}
+
+.incomingGuideDisclosure summary span {
+  margin-left: auto;
+  color: #0C61F1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.incomingGuideDisclosure[open] summary {
+  border-bottom: 1px solid #dbe6fa;
+}
+
+.incomingGuideDisclosure[open] summary span {
+  font-size: 0;
+}
+
+.incomingGuideDisclosure[open] summary span::after {
+  content: "Tutup panduan";
+  font-size: 12px;
+}
+
+.incomingGuideDisclosure ul {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 16px 20px 18px 36px;
+}
+
+.incomingGuideDisclosure li {
+  padding-right: 8px;
+  color: #4f5f8d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1000px) {
+  .incomingGuideDisclosure ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .incomingGuideDisclosure ul {
+    grid-template-columns: 1fr;
+  }
 }
 
 .incomingListCard,
@@ -10074,6 +10150,86 @@ td {
 .pimpinanReviewTable .viewBtn {
   display: inline-grid;
   place-items: center;
+}
+
+/* Keep the leadership dashboard inside the available workspace width. */
+.pimpinanDashboard {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.pimpinanDashboard .dashboardStats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.pimpinanDashboard .dashStat {
+  min-width: 0;
+  min-height: 126px;
+  grid-template-columns: 58px minmax(0, 1fr) 50px;
+  gap: 10px;
+  padding: 18px 14px;
+}
+
+.pimpinanDashboard .dashIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  font-size: 27px;
+}
+
+.pimpinanDashboard .dashStat > div {
+  min-width: 0;
+}
+
+.pimpinanDashboard .dashStat p,
+.pimpinanDashboard .dashStat small {
+  overflow-wrap: anywhere;
+}
+
+.pimpinanDashboard .sparkline {
+  width: 50px;
+}
+
+.pimpinanDashboard .dashboardGrid,
+.pimpinanDashboard .dashPanel {
+  min-width: 0;
+}
+
+.pimpinanDashboard .dashboardGrid {
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+}
+
+.pimpinanDashboard .dashboardTableScroll {
+  overflow-x: hidden;
+}
+
+.pimpinanDashboard .pimpinanReviewTable {
+  min-width: 0;
+}
+
+.pimpinanDashboard .pimpinanReviewTable th:nth-child(1),
+.pimpinanDashboard .pimpinanReviewTable td:nth-child(1) { width: 15%; }
+.pimpinanDashboard .pimpinanReviewTable th:nth-child(2),
+.pimpinanDashboard .pimpinanReviewTable td:nth-child(2) { width: 19%; }
+.pimpinanDashboard .pimpinanReviewTable th:nth-child(3),
+.pimpinanDashboard .pimpinanReviewTable td:nth-child(3) { width: 18%; }
+.pimpinanDashboard .pimpinanReviewTable th:nth-child(4),
+.pimpinanDashboard .pimpinanReviewTable td:nth-child(4) { width: 24%; }
+.pimpinanDashboard .pimpinanReviewTable th:nth-child(5),
+.pimpinanDashboard .pimpinanReviewTable td:nth-child(5) { width: 17%; }
+.pimpinanDashboard .pimpinanReviewTable th:nth-child(6),
+.pimpinanDashboard .pimpinanReviewTable td:nth-child(6) { width: 7%; }
+
+@media (max-width: 1180px) {
+  .pimpinanDashboard .dashboardStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pimpinanDashboard .dashboardGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .adminUserTable th:nth-child(1),

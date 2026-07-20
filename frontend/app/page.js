@@ -1811,7 +1811,7 @@ function PimpinanDashboard({ setView, ajuanRequests = [], notifications = [], on
   ];
 
   return (
-    <section className="dashboardPage">
+    <section className="dashboardPage pimpinanDashboard">
       <div className="dashboardTitle">
         <h1>Dashboard Pimpinan</h1>
         <p>Ringkasan review surat, approval, disposisi, dan tindak lanjut unit kerja.</p>
@@ -2206,7 +2206,7 @@ function AjuanMasukDetail({ ajuan, detail, onBack, setConfirm, onUpdateAjuan }) 
                       </div>
                       <div className="requestAttachmentActions">
                         <button type="button" className="softBtn" onClick={() => setPreviewAttachment(attachment)}><LineIcon name="eye" /> Pratinjau</button>
-                        <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, requestDetail)}><LineIcon name="upload" /> Unduh</button>
+                        <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, requestDetail)}><LineIcon name="download" /> Unduh</button>
                       </div>
                     </div>
                   );
@@ -2230,7 +2230,7 @@ function AjuanMasukDetail({ ajuan, detail, onBack, setConfirm, onUpdateAjuan }) 
                   </div>
                   <div className="requestAttachmentActions">
                     <button type="button" className="softBtn" onClick={() => setPreviewAttachment(attachment)}><LineIcon name="eye" /> Pratinjau</button>
-                    <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, requestDetail)}><LineIcon name="upload" /> Unduh</button>
+                    <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, requestDetail)}><LineIcon name="download" /> Unduh</button>
                   </div>
                 </div>
                 );
@@ -2254,7 +2254,7 @@ function AjuanMasukDetail({ ajuan, detail, onBack, setConfirm, onUpdateAjuan }) 
                       </div>
                       <div className="requestAttachmentActions">
                         <button type="button" className="softBtn" onClick={() => setPreviewAttachment(attachment)}><LineIcon name="eye" /> Pratinjau</button>
-                        <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, requestDetail)}><LineIcon name="upload" /> Unduh</button>
+                        <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, requestDetail)}><LineIcon name="download" /> Unduh</button>
                       </div>
                     </div>
                   );
@@ -2910,7 +2910,7 @@ function DocumentOpenButtons({ spec, onPreview, compact = false, onError }) {
   return (
     <div className={compact ? "documentOpenActions compact" : "documentOpenActions"}>
       <button type="button" className="softBtn" onClick={() => previewLetterDocument(spec, onPreview, onError)}><LineIcon name="eye" /> Pratinjau</button>
-      <button type="button" className="primaryBtn" onClick={() => downloadLetterDocument(spec, onError)}><LineIcon name="upload" /> Unduh</button>
+      <button type="button" className="primaryBtn" onClick={() => downloadLetterDocument(spec, onError)}><LineIcon name="download" /> Unduh</button>
     </div>
   );
 }
@@ -2968,6 +2968,33 @@ function AttachmentPreviewModal({ attachment, detail, onClose }) {
   const isImage = type.startsWith("image/");
   const showUploadedPdf = dataUrl && isPdf;
   const showLetterPreview = !dataUrl && isPdf && hasLetterPreviewDetail(detail);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+
+  useEffect(() => {
+    if (!showUploadedPdf) {
+      setPdfPreviewUrl("");
+      return undefined;
+    }
+
+    let objectUrl = "";
+    let cancelled = false;
+
+    fetch(dataUrl)
+      .then((response) => response.blob())
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob.type ? blob : new Blob([blob], { type: "application/pdf" }));
+        setPdfPreviewUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setPdfPreviewUrl(dataUrl);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [dataUrl, showUploadedPdf]);
 
   return (
     <div className="modalBackdrop" role="presentation" onClick={onClose}>
@@ -2980,7 +3007,8 @@ function AttachmentPreviewModal({ attachment, detail, onClose }) {
           <button type="button" className="iconBtn" onClick={onClose} aria-label="Tutup pratinjau"><LineIcon name="x" /></button>
         </div>
         <div className="attachmentPreviewBody">
-          {showUploadedPdf && <iframe title={`Pratinjau ${name}`} src={dataUrl} />}
+          {showUploadedPdf && pdfPreviewUrl && <iframe title={`Pratinjau ${name}`} src={`${pdfPreviewUrl}#view=FitH`} />}
+          {showUploadedPdf && !pdfPreviewUrl && <div className="attachmentPreviewLoading">Memuat dokumen...</div>}
           {showLetterPreview && <LetterPreviewSheet detail={detail} attachment={attachment} />}
           {dataUrl && isImage && <img src={dataUrl} alt={`Pratinjau ${name}`} />}
           {!showUploadedPdf && !showLetterPreview && (!dataUrl || (!isPdf && !isImage)) && (
@@ -3610,12 +3638,12 @@ function IncomingLetterForm({ role, setConfirm }) {
       form.dispatchEvent(new Event("reset", { bubbles: true }));
       setIncomingMode("dashboard");
       await loadOperatorIncomingLetters();
-      setConfirm({
-        title: isForward ? "Surat diteruskan" : "Surat tersimpan",
-        body: isForward
-          ? `${agendaNumber} tersimpan, status menjadi diteruskan, dan notifikasi pimpinan dibuat.`
-          : `${agendaNumber} tersimpan sebagai surat masuk diregistrasi.`
-      });
+      if (!isForward) {
+        setConfirm({
+          title: "Surat tersimpan",
+          body: `${agendaNumber} tersimpan sebagai surat masuk diregistrasi.`
+        });
+      }
     } catch (error) {
       setConfirm({ title: "Gagal menyimpan surat masuk", body: error.message || "Silakan coba lagi." });
     } finally {
@@ -3726,12 +3754,6 @@ function IncomingLetterForm({ role, setConfirm }) {
       "Lanjutkan ke pimpinan bila memerlukan disposisi.",
       "Arsipkan surat setelah selesai diproses."
     ];
-    const incomingNotices = [
-      ["mail", "Surat baru diterima", "SM/2025/05/0124 - PT Cipta Karya", "8 menit lalu", "blue"],
-      ["clipboard", "Surat perlu diproses", "SM/2025/05/0122 - Universitas X", "22 menit lalu", "orange"],
-      ["send", "Surat telah diteruskan", "SM/2025/05/0123 - Dinas PU Jakarta", "1 jam lalu", "green"]
-    ];
-
     return (
       <section className="incomingPage incomingDashboardPage">
         <header className="ajuanHeader incomingDashboardHeader">
@@ -3753,6 +3775,13 @@ function IncomingLetterForm({ role, setConfirm }) {
             </article>
           ))}
         </section>
+
+        <details className="incomingGuideDisclosure" open>
+          <summary><LineIcon name="book" /> Panduan Surat Masuk <span aria-hidden="true" /></summary>
+          <ul>
+            {guideItems.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </details>
 
         <section className="incomingDashboardGrid">
           <article className="tableShell incomingListCard">
@@ -3839,34 +3868,6 @@ function IncomingLetterForm({ role, setConfirm }) {
             </div>
           </article>
 
-          <aside className="incomingSideStack">
-            <article className="incomingInfoCard">
-              <h3><LineIcon name="book" /> Panduan Surat Masuk</h3>
-              <ul>
-                {guideItems.map((item) => <li key={item}>{item}</li>)}
-              </ul>
-            </article>
-
-            <article className="incomingInfoCard incomingNoticeCard">
-              <div className="rowBetween">
-                <h3>Notifikasi Surat Masuk</h3>
-                <button type="button" className="linkBtn">Lihat semua</button>
-              </div>
-              <div className="incomingNoticeList">
-                {incomingNotices.map(([icon, title, body, time, tone]) => (
-                  <div className="incomingNoticeItem" key={title}>
-                    <span className={`incomingNoticeIcon ${tone}`}><LineIcon name={icon} /></span>
-                    <div>
-                      <strong>{title}</strong>
-                      <small>{body}</small>
-                    </div>
-                    <time>{time}</time>
-                    <i aria-hidden="true" />
-                  </div>
-                ))}
-              </div>
-            </article>
-          </aside>
         </section>
       </section>
     );
@@ -5636,7 +5637,7 @@ function AjuanSuratDetail({ ajuan, onBack, onContinue, onCreateRetry, setConfirm
                       </div>
                       <div className="requestAttachmentActions">
                         <button type="button" className="softBtn" onClick={() => setPreviewAttachment(attachment)}><LineIcon name="eye" /> Pratinjau</button>
-                        <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, ajuan)}><LineIcon name="upload" /> Unduh</button>
+                        <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, ajuan)}><LineIcon name="download" /> Unduh</button>
                       </div>
                     </div>
                   );
@@ -5661,7 +5662,7 @@ function AjuanSuratDetail({ ajuan, onBack, onContinue, onCreateRetry, setConfirm
                     {hasFile && (
                       <div className="requestAttachmentActions">
                         <button type="button" className="softBtn" onClick={() => setPreviewAttachment(attachment)}><LineIcon name="eye" /> Pratinjau</button>
-                        <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, ajuan)}><LineIcon name="upload" /> Unduh</button>
+                        <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, ajuan)}><LineIcon name="download" /> Unduh</button>
                       </div>
                     )}
                   </div>
@@ -8693,7 +8694,7 @@ function OutgoingLetterDetail({ detail, onBack, onRevise, onNumbering, backLabel
                       </div>
                       <div className="requestAttachmentActions">
                         <button type="button" className="softBtn" onClick={() => setPreviewDocument(attachment)}><LineIcon name="eye" /> Pratinjau</button>
-                        <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="upload" /> Unduh</button>
+                        <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="download" /> Unduh</button>
                       </div>
                     </div>
                   );
@@ -8716,7 +8717,7 @@ function OutgoingLetterDetail({ detail, onBack, onRevise, onNumbering, backLabel
                     </div>
                     <div className="requestAttachmentActions">
                       <button type="button" className="softBtn" onClick={() => setPreviewDocument(attachment)}><LineIcon name="eye" /> Pratinjau</button>
-                      <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="upload" /> Unduh</button>
+                      <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="download" /> Unduh</button>
                     </div>
                   </div>
                 );
@@ -8867,7 +8868,7 @@ function ApprovalLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
                     </div>
                     <div className="requestAttachmentActions">
                       <button type="button" className="softBtn" onClick={() => setPreviewDocument(attachment)}><LineIcon name="eye" /> Pratinjau</button>
-                      <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="upload" /> Unduh</button>
+                      <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="download" /> Unduh</button>
                     </div>
                   </div>
                 );
@@ -9115,7 +9116,7 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
                         </div>
                         <div className="requestAttachmentActions">
                           <button type="button" className="softBtn" onClick={() => setPreviewDocument(attachment)}><LineIcon name="eye" /> Pratinjau</button>
-                          <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="upload" /> Unduh</button>
+                          <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="download" /> Unduh</button>
                         </div>
                       </div>
                     );
@@ -9577,7 +9578,7 @@ function AjuanApprovalProcess({ detail, onBack, setConfirm, onUpdateAjuan }) {
                     </div>
                     <div className="requestAttachmentActions">
                       <button type="button" className="softBtn" onClick={() => setPreviewAttachment(attachment)}><LineIcon name="eye" /> Pratinjau</button>
-                      <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="upload" /> Unduh</button>
+                      <button type="button" className="primaryBtn" onClick={() => downloadAttachment(attachment, detail)}><LineIcon name="download" /> Unduh</button>
                     </div>
                   </div>
                 );
