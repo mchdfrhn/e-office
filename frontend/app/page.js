@@ -6244,8 +6244,8 @@ function DisposisiMasukHome({ setConfirm }) {
             <label className="wide"><span className="followupFieldLabel">Ringkasan Tindak Lanjut <em>*</em></span>
               <input placeholder="Contoh: Koordinasi dengan jurusan terkait dan peninjauan kebutuhan praktik" required />
             </label>
-            <label className="wide"><span className="followupFieldLabel">Uraian Hasil / Catatan Pelaksanaan <em>*</em></span>
-              <textarea rows={4} placeholder="Jelaskan hasil pelaksanaan tindak lanjut, progres, kendala, dan rencana selanjutnya..." required />
+            <label className="wide"><span className="followupFieldLabel">Uraian Hasil / Catatan Pelaksanaan</span>
+              <textarea rows={4} placeholder="Jelaskan hasil pelaksanaan tindak lanjut, progres, kendala, dan rencana selanjutnya..." />
             </label>
             <div className="followupUploadBox wide">
               <strong>Upload Dokumen Pendukung / Hasil</strong>
