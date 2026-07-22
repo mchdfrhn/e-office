@@ -1507,7 +1507,15 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
           {currentView === "Approval" && <Approval setConfirm={setConfirm} ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} onUpdateAjuan={updateAjuanRequest} onUpdateOutgoing={updateOutgoingLetter} />}
           {currentView === "Ajuan Surat" && <AjuanSuratHome setConfirm={setConfirm} onCreateAjuan={createAjuanRequest} currentUserName={config.name} currentUserProfile={currentProfile} ajuanRequests={ajuanRequests} />}
           {currentView === "Ajuan Masuk" && <OperatorAjuanMasuk setConfirm={setConfirm} ajuanRequests={ajuanRequests} onUpdateAjuan={updateAjuanRequest} />}
-          {currentView === "Surat Masuk" && <IncomingLetterForm role={role} setConfirm={setConfirm} />}
+          {currentView === "Surat Masuk" && <IncomingLetterForm role={role} setConfirm={setConfirm} onLocalDispositionCreated={(disposition) => {
+            publishLocalNotification(["User"], {
+              type: "disposition_created",
+              title: "Disposisi baru diterima",
+              message: `${disposition.disposition_number} dari ${disposition.giver_name || "Pimpinan"}: ${disposition.instruction}`,
+              source_type: "dispositions",
+              source_id: disposition.id || disposition.disposition_number
+            });
+          }} />}
           {currentView === "Disposisi Masuk" && <DisposisiMasukHome setConfirm={setConfirm} />}
           {currentView === "Arsip" && <ArchiveHome ajuanRequests={ajuanRequests} />}
           {currentView === "Backup" && <AdminBackup setConfirm={setConfirm} />}
@@ -3453,7 +3461,7 @@ function getOperatorIncomingFlow(status) {
   ];
 }
 
-function IncomingLetterForm({ role, setConfirm }) {
+function IncomingLetterForm({ role, setConfirm, onLocalDispositionCreated }) {
   const [emailSyncing, setEmailSyncing] = useState(false);
   const [processingEmailId, setProcessingEmailId] = useState("");
   const [savingIncoming, setSavingIncoming] = useState("");
@@ -3527,7 +3535,7 @@ function IncomingLetterForm({ role, setConfirm }) {
     if (operatorIncomingPage > operatorIncomingTotalPages) setOperatorIncomingPage(operatorIncomingTotalPages);
   }, [operatorIncomingPage, operatorIncomingTotalPages]);
 
-  if (role === "Pimpinan") return <PimpinanIncomingReview setConfirm={setConfirm} />;
+  if (role === "Pimpinan") return <PimpinanIncomingReview setConfirm={setConfirm} onLocalDispositionCreated={onLocalDispositionCreated} />;
 
   const recipients = ["Waket I", "Waket II", "Waket III", "Prodi TS", "Prodi TI", "Prodi TL", "Unit LPPM", "Unit LPMI"];
   const instructions = ["Untuk diketahui", "Teliti dan proses lebih lanjut", "Bicarakan dengan saya", "Minta pendapat saudari", "Siapkan jawaban", "Setuju"];
@@ -4374,7 +4382,7 @@ function getIncomingLetterDetail(row) {
   };
 }
 
-function PimpinanIncomingReview({ setConfirm }) {
+function PimpinanIncomingReview({ setConfirm, onLocalDispositionCreated }) {
   const [dispositionSource, setDispositionSource] = useState(null);
   const [incomingAction, setIncomingAction] = useState(null);
   const demoIncomingRows = [
@@ -4431,6 +4439,7 @@ function PimpinanIncomingReview({ setConfirm }) {
       localDisposition,
       ...readLocalDispositions().filter((item) => item.disposition_number !== dispositionNumber)
     ]);
+    onLocalDispositionCreated?.(localDisposition);
     return localDisposition;
   }
 

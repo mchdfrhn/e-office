@@ -10940,9 +10940,13 @@ td {
 }
 
 .requestMeta strong {
+  display: block;
+  max-width: 100%;
   color: #282C70;
   font-size: 14px;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .requestMeta > div {
@@ -11257,6 +11261,10 @@ td {
 }
 
 .requestMessage {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 10px;
   padding: 20px;
   border: 1px solid #96B3E9;
   border-radius: 14px;
