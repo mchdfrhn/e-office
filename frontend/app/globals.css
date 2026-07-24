@@ -1955,8 +1955,13 @@ textarea:focus {
 
 .dashboardGrid {
   display: grid;
-  grid-template-columns: 1.08fr 0.92fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
+}
+
+.dashboardGrid > .trendPanel,
+.dashboardGrid > .summaryPanel {
+  display: none;
 }
 
 .dashPanel {
@@ -10198,7 +10203,7 @@ td {
 }
 
 .pimpinanDashboard .dashboardGrid {
-  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .pimpinanDashboard .dashboardTableScroll {
@@ -11440,6 +11445,118 @@ td {
   border-radius: 8px;
   color: #fff;
   background: linear-gradient(135deg, #0C61F1, #0036E2);
+}
+
+.reviewApprovalMeta {
+  min-width: 290px;
+  padding: 12px 14px;
+  border: 1px solid #dbe6f5;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(50, 72, 130, 0.05);
+}
+
+.approvalDecisionResult > span {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.approvalDecisionResult svg {
+  width: 15px;
+  height: 15px;
+}
+
+.approvalDecisionResult.approved {
+  color: #15965f;
+  border-color: #ccebdd;
+  background: #f4fcf8;
+}
+
+.approvalDecisionResult.rejected {
+  color: #d84a55;
+  border-color: #f3d0d4;
+  background: #fff6f7;
+}
+
+.approvalReviewCard {
+  display: grid;
+  gap: 16px;
+}
+
+.approvalReviewCard h2 {
+  margin-bottom: 0;
+}
+
+.approvalDecisionResult {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid;
+  border-radius: 12px;
+}
+
+.approvalDecisionResult > span {
+  width: 30px;
+  height: 30px;
+}
+
+.approvalDecisionResult strong,
+.approvalDecisionResult small {
+  display: block;
+}
+
+.approvalDecisionResult small {
+  margin-top: 4px;
+  color: #66758f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.approvalDecisionResult dl {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  margin: 4px 0 0;
+  padding: 14px;
+  border: 1px solid #e3eaf5;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.approvalDecisionResult dt {
+  color: #8d90b7;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.approvalDecisionResult dd {
+  margin: 3px 0 0;
+  color: #282c70;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.approvalReviewNote {
+  padding: 16px;
+  border: 1px solid #dfe7f3;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.approvalReviewNote strong {
+  color: #282c70;
+  font-size: 13px;
+}
+
+.approvalReviewNote p {
+  margin: 8px 0 0;
+  color: #66758f;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .successAction,

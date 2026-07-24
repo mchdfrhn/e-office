@@ -464,7 +464,7 @@ const roleConfig = {
   },
   Pegawai: {
     name: "Sari Pegawai",
-    nav: ["Dashboard", "Disposisi", "Arsip", "Notifikasi"],
+    nav: ["Dashboard", "Disposisi", "Arsip"],
     stats: [["Surat Diterima", "14"], ["Undangan", "8"], ["Pengumuman", "5"], ["Download", "11"]]
   }
 };
@@ -740,9 +740,6 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
   const [localDataReady, setLocalDataReady] = useState(false);
   const [userParams, setUserParams] = useState({ page: 1, search: "", role: "", status: "" });
   const [userMeta, setUserMeta] = useState({ totalPages: 1, totalCount: 0 });
-  const [portalNotifications, setPortalNotifications] = useState([]);
-  const [notificationMeta, setNotificationMeta] = useState({ unreadCount: 0, totalCount: 0 });
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   const loadUsers = useCallback(async () => {
     if (isDummyToken()) return;
@@ -773,91 +770,11 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
 
   const config = { ...roleConfig[role], name: sessionUser?.full_name || roleConfig[role].name };
   const currentProfile = getProfileFor(config.name, role);
-  const utilityViews = ["Notifikasi", "Pengaturan Profil"];
+  const utilityViews = ["Pengaturan Profil"];
   const currentView = config.nav.includes(view) || utilityViews.includes(view) ? view : "Dashboard";
   const sidebarNavItems = config.nav;
   const activeNavIndex = Math.max(sidebarNavItems.indexOf(currentView), 0);
-  const unreadCount = notificationMeta.unreadCount;
-
-  const loadNotifications = useCallback(async () => {
-    if (!loggedIn) {
-      setPortalNotifications([]);
-      setNotificationMeta({ unreadCount: 0, totalCount: 0 });
-      return;
-    }
-    const localItems = localNotificationsForRole(role);
-    if (isDummyToken()) {
-      setPortalNotifications(localItems);
-      setNotificationMeta({ unreadCount: localItems.filter((item) => !item.is_read).length, totalCount: localItems.length });
-      return;
-    }
-    setNotificationsLoading(true);
-    try {
-      const payload = await apiFetch("/notifications?perPage=50");
-      const merged = mergeNotifications(payload.data || [], localItems);
-      setPortalNotifications(merged);
-      setNotificationMeta({
-        ...(payload.meta || {}),
-        unreadCount: (payload.meta?.unreadCount || 0) + localItems.filter((item) => !item.is_read).length,
-        totalCount: (payload.meta?.totalCount || 0) + localItems.length
-      });
-    } catch (error) {
-      console.error("Gagal memuat notifikasi", error);
-    } finally {
-      setNotificationsLoading(false);
-    }
-  }, [loggedIn, role]);
-
-  const publishLocalNotification = useCallback((recipientRoles, notification) => {
-    const createdAt = new Date().toISOString();
-    const newItems = recipientRoles.map((recipientRole) => ({
-      id: `local-${crypto.randomUUID()}`,
-      recipient_role: recipientRole,
-      type: notification.type || "generic",
-      title: notification.title,
-      message: notification.message,
-      source_type: notification.source_type,
-      source_id: notification.source_id || null,
-      is_read: false,
-      read_at: null,
-      created_at: createdAt
-    }));
-    const stored = readLocalJson(LOCAL_NOTIFICATIONS_KEY, []);
-    writeLocalJson(LOCAL_NOTIFICATIONS_KEY, [...newItems, ...stored].slice(0, 200));
-    const visibleItems = newItems.filter((item) => item.recipient_role === role);
-    if (visibleItems.length) {
-      setPortalNotifications((current) => mergeNotifications(current, visibleItems));
-      setNotificationMeta((current) => ({
-        ...current,
-        unreadCount: (current.unreadCount || 0) + visibleItems.length,
-        totalCount: (current.totalCount || 0) + visibleItems.length
-      }));
-    }
-  }, [role]);
-
-  const openNotification = useCallback(async (notification) => {
-    if (!notification.is_read && String(notification.id).startsWith("local-")) {
-      const stored = readLocalJson(LOCAL_NOTIFICATIONS_KEY, []);
-      writeLocalJson(LOCAL_NOTIFICATIONS_KEY, stored.map((item) => item.id === notification.id
-        ? { ...item, is_read: true, read_at: new Date().toISOString() }
-        : item));
-      setPortalNotifications((current) => current.map((item) => item.id === notification.id
-        ? { ...item, is_read: true, read_at: new Date().toISOString() }
-        : item));
-      setNotificationMeta((current) => ({ ...current, unreadCount: Math.max((current.unreadCount || 0) - 1, 0) }));
-    } else if (!notification.is_read && !isDummyToken()) {
-      try {
-        await apiFetch(`/notifications/${notification.id}/read`, { method: "POST" });
-        setPortalNotifications((current) => current.map((item) => item.id === notification.id
-          ? { ...item, is_read: true, read_at: new Date().toISOString() }
-          : item));
-        setNotificationMeta((current) => ({ ...current, unreadCount: Math.max((current.unreadCount || 0) - 1, 0) }));
-      } catch (error) {
-        console.error("Gagal menandai notifikasi", error);
-      }
-    }
-    setView(resolveNotificationView(notification.source_type, role));
-  }, [role]);
+  const publishLocalNotification = useCallback(() => {}, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -895,7 +812,6 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
             setOutgoingLetters(normalizeOutgoingWorkflowStatus(hydratedOutgoing));
           });
         }
-        if (event.key === LOCAL_NOTIFICATIONS_KEY) loadNotifications();
       } catch {
         if (event.key === LOCAL_AJUAN_KEY) setAjuanRequests(initialAjuanRequests);
         if (event.key === LOCAL_OUTGOING_KEY) setOutgoingLetters(initialOutgoingLetters);
@@ -904,7 +820,7 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
 
     window.addEventListener("storage", syncAjuanFromStorage);
     return () => window.removeEventListener("storage", syncAjuanFromStorage);
-  }, [loadNotifications]);
+  }, []);
 
   useEffect(() => {
     if (!localDataReady) return;
@@ -915,24 +831,6 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
     if (!localDataReady) return;
     writeLocalJson(LOCAL_OUTGOING_KEY, stripOutgoingAttachmentPayloads(normalizeOutgoingWorkflowStatus(outgoingLetters)));
   }, [outgoingLetters, localDataReady]);
-
-  useEffect(() => {
-    if (!localDataReady) return;
-    const initialKeys = new Set(initialAjuanRequests.map(getAjuanIdentityKey));
-    const notifiedSources = new Set(readLocalJson(LOCAL_NOTIFICATIONS_KEY, []).map((item) => String(item.source_id || "")));
-    const missingNotifications = ajuanRequests.filter((request) => (
-      getAjuanWorkflowStatus(request) === "Menunggu Approval" &&
-      !initialKeys.has(getAjuanIdentityKey(request)) &&
-      !notifiedSources.has(String(request.nomor || ""))
-    ));
-    missingNotifications.forEach((request) => publishLocalNotification(["Operator", "Pimpinan"], {
-      type: "letter_request_submitted",
-      title: "Ajuan surat baru masuk",
-      message: `${request.pemohon || "Pengguna"} mengajukan ${request.jenis || "surat"} - ${request.nomor}.`,
-      source_type: "letter_requests",
-      source_id: request.nomor
-    }));
-  }, [ajuanRequests, localDataReady, publishLocalNotification]);
 
   useEffect(() => {
     if (!localDataReady || (!isDummyToken() && getStoredToken())) return;
@@ -964,20 +862,6 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
       ignore = true;
     };
   }, [loggedIn, role]);
-
-  useEffect(() => {
-    loadNotifications();
-    if (!loggedIn || isDummyToken()) return undefined;
-    const intervalId = window.setInterval(loadNotifications, 30000);
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") loadNotifications();
-    };
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [loadNotifications]);
 
   useEffect(() => {
     let ignore = false;
@@ -1475,7 +1359,6 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
             </label>
           )}
           <div className="topbarActions">
-            <button className="bellBtn" onClick={() => setView("Notifikasi")} aria-label="Buka notifikasi"><LineIcon name="bell" /><b>{unreadCount}</b></button>
             <button className={profileOpen ? "profilePill open" : "profilePill"} onClick={() => setProfileOpen((current) => !current)} aria-expanded={profileOpen} aria-haspopup="menu">
               <span className="avatarFace" />
               <span><strong>{config.name}</strong><small>{role}</small></span>
@@ -1500,9 +1383,8 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
           </div>
         </header>
         <section className="content">
-          {currentView === "Dashboard" && (role === "Operator" ? <OperatorDashboard setView={setView} ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} notifications={portalNotifications} onOpenNotification={openNotification} /> : role === "Pimpinan" ? <PimpinanDashboard setView={setView} ajuanRequests={ajuanRequests} notifications={portalNotifications} onOpenNotification={openNotification} /> : role === "Administrator" ? <AdminDashboard setView={setView} userRows={userRows} auditRows={auditRows} apiNotice={apiNotice} /> : <Dashboard config={config} role={role} setView={setView} notifications={portalNotifications} onOpenNotification={openNotification} />)}
+          {currentView === "Dashboard" && (role === "Operator" ? <OperatorDashboard setView={setView} ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} /> : role === "Pimpinan" ? <PimpinanDashboard setView={setView} ajuanRequests={ajuanRequests} /> : role === "Administrator" ? <AdminDashboard setView={setView} userRows={userRows} auditRows={auditRows} apiNotice={apiNotice} /> : <Dashboard config={config} role={role} setView={setView} />)}
           {currentView === "Pengaturan Profil" && <ProfileSettings config={config} profile={currentProfile} role={role} setConfirm={setConfirm} />}
-          {currentView === "Notifikasi" && <Notifications notifications={portalNotifications} meta={notificationMeta} loading={notificationsLoading} onOpen={openNotification} />}
           {currentView === "Laporan" && <Reports setConfirm={setConfirm} />}
           {currentView === "Approval" && <Approval setConfirm={setConfirm} ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} onUpdateAjuan={updateAjuanRequest} onUpdateOutgoing={updateOutgoingLetter} />}
           {currentView === "Ajuan Surat" && <AjuanSuratHome setConfirm={setConfirm} onCreateAjuan={createAjuanRequest} currentUserName={config.name} currentUserProfile={currentProfile} ajuanRequests={ajuanRequests} />}
@@ -1517,7 +1399,7 @@ export default function Home({ initialRole = "User", startLoggedIn = false }) {
             });
           }} />}
           {currentView === "Disposisi Masuk" && <DisposisiMasukHome setConfirm={setConfirm} />}
-          {currentView === "Arsip" && <ArchiveHome ajuanRequests={ajuanRequests} />}
+          {currentView === "Arsip" && <ArchiveHome ajuanRequests={ajuanRequests} outgoingLetters={outgoingLetters} />}
           {currentView === "Backup" && <AdminBackup setConfirm={setConfirm} />}
           {["Konsep Surat", "Status Ajuan", "Surat Keluar", "Disposisi", "Arsip Digital", "Pengguna", "Audit Trail"].includes(currentView) && (
             <ModuleView
@@ -1561,7 +1443,7 @@ function resolveDemoRole(username) {
   return null;
 }
 
-function Dashboard({ config, role, setView, notifications = [], onOpenNotification }) {
+function Dashboard({ config, role, setView }) {
   return (
     <section className="dashboardPage">
       <div className="dashboardTitle">
@@ -1605,10 +1487,6 @@ function Dashboard({ config, role, setView, notifications = [], onOpenNotificati
               ))}
             </tbody>
           </table>
-        </article>
-        <article className="dashPanel notificationsPanel">
-          <PanelHeader title="Notifikasi Terbaru" action="Lihat semua" onClick={() => setView("Notifikasi")} />
-          <NotificationPreview notifications={notifications} onOpen={onOpenNotification} />
         </article>
         <article className="dashPanel trendPanel">
           <PanelHeader title="Tren Ajuan Surat (Bulanan)" action="12 Bulan Terakhir" />
@@ -1702,7 +1580,7 @@ function buildOperatorNotices(ajuanRequests = [], outgoingLetters = []) {
   return [...waitingAjuan, ...numberingAjuan, ...incomingNotices, ...outgoingWaiting].slice(0, 4);
 }
 
-function OperatorDashboard({ setView, ajuanRequests = [], outgoingLetters = [], notifications = [], onOpenNotification }) {
+function OperatorDashboard({ setView, ajuanRequests = [], outgoingLetters = [] }) {
   const cards = [
     ["Ajuan Masuk", "27", "Monitoring ajuan", "inbox", "blue", "Ajuan Masuk"],
     ["Surat Masuk", "124", "Email dan manual", "mail", "purple", "Surat Masuk"],
@@ -1753,11 +1631,6 @@ function OperatorDashboard({ setView, ajuanRequests = [], outgoingLetters = [], 
           </table>
         </article>
 
-        <article className="dashPanel notificationsPanel">
-          <PanelHeader title="Notifikasi Operator" action="Lihat semua" onClick={() => setView("Notifikasi")} />
-          <NotificationPreview notifications={notifications} onOpen={onOpenNotification} />
-        </article>
-
         <article className="dashPanel trendPanel">
           <PanelHeader title="Tren Proses Surat (Bulanan)" action="12 Bulan Terakhir" />
           <div className="chartLegend"><span className="blueDot" />Ajuan Masuk <span className="purpleDot" />Surat Selesai</div>
@@ -1798,7 +1671,7 @@ function OperatorDashboard({ setView, ajuanRequests = [], outgoingLetters = [], 
   );
 }
 
-function PimpinanDashboard({ setView, ajuanRequests = [], notifications = [], onOpenNotification }) {
+function PimpinanDashboard({ setView, ajuanRequests = [] }) {
   const waitingAjuan = ajuanRequests.filter((item) => item.status === "Menunggu Approval");
   const cards = [
     ["Review Masuk", "17", "Surat perlu dibaca", "mail", "blue", "Surat Masuk"],
@@ -1854,11 +1727,6 @@ function PimpinanDashboard({ setView, ajuanRequests = [], notifications = [], on
             </tbody>
           </table>
           </div>
-        </article>
-
-        <article className="dashPanel notificationsPanel">
-          <PanelHeader title="Notifikasi Pimpinan" action="Lihat semua" onClick={() => setView("Notifikasi")} />
-          <NotificationPreview notifications={notifications} onOpen={onOpenNotification} />
         </article>
 
         <article className="dashPanel trendPanel">
@@ -1953,7 +1821,7 @@ function AdminDashboard({ setView, userRows, auditRows, apiNotice }) {
           </table>
         </article>
 
-        <article className="dashPanel notificationsPanel">
+        <article className="dashPanel auditPanel">
           <PanelHeader title="Audit Terbaru" action="Lihat semua" onClick={() => setView("Audit Trail")} />
           <div className="adminAuditList">
             {recentAudits.map(([time, actor, module, action, log], index) => (
@@ -2478,7 +2346,7 @@ function RevisionRequestPanel({ nomor, pemohon, setConfirm, onCancel, onLock, on
 
       <div className="revisionNotice">
         <LineIcon name="info" />
-        <span>Pemohon akan menerima notifikasi internal dan status ajuan berubah menjadi Perlu Revisi.</span>
+        <span>Status ajuan akan berubah menjadi Perlu Revisi.</span>
       </div>
 
       <div className="verificationActions">
@@ -4925,7 +4793,7 @@ function PimpinanDispositionCreate({ onBack, setConfirm, sourceDetail = null }) 
 
             <div className="dispositionSubmitBar">
               <button type="button" className="ghostBtn" onClick={onBack}>Batal</button>
-              <button type="button" className="primaryBtn" onClick={() => setConfirm({ title: "Kirim disposisi?", body: `Disposisi untuk ${source.agenda} akan dikirim kepada tujuan yang dipilih, notifikasi dibuat, dan aktivitas masuk audit trail.` })}><LineIcon name="send" /> Kirim Disposisi</button>
+              <button type="button" className="primaryBtn" onClick={() => setConfirm({ title: "Kirim disposisi?", body: `Disposisi untuk ${source.agenda} akan dikirim kepada tujuan yang dipilih dan aktivitas masuk audit trail.` })}><LineIcon name="send" /> Kirim Disposisi</button>
             </div>
           </form>
         </div>
@@ -4941,7 +4809,7 @@ function PimpinanDispositionCreate({ onBack, setConfirm, sourceDetail = null }) 
           </div>
           <div className="dispositionFlow">
             <h3>Alur Disposisi</h3>
-            {["Pimpinan membuat disposisi", "Tujuan menerima notifikasi", "User/staf mengirim tindak lanjut"].map((item, index) => (
+            {["Pimpinan membuat disposisi", "Tujuan menerima disposisi", "User/staf mengirim tindak lanjut"].map((item, index) => (
               <p key={item}><b>{index + 1}</b>{item}</p>
             ))}
           </div>
@@ -4951,12 +4819,13 @@ function PimpinanDispositionCreate({ onBack, setConfirm, sourceDetail = null }) 
   );
 }
 
-function ArchiveHome({ ajuanRequests = [] }) {
+function ArchiveHome({ ajuanRequests = [], outgoingLetters = [] }) {
   const [archiveFilter, setArchiveFilter] = useState(null);
   const [archiveTypeFolder, setArchiveTypeFolder] = useState(null);
   const [archivePage, setArchivePage] = useState(1);
   const [archivePageSize, setArchivePageSize] = useState(10);
   const [previewDocument, setPreviewDocument] = useState(null);
+  const [incomingLetters, setIncomingLetters] = useState([]);
   const baseArchiveRows = [
     ["AJ/2025/05/00128", "Ajuan Surat", "Surat Izin Penelitian", "16 Mei 2025", "Otomatis", "Disetujui"],
     ["SM/109/V/2026", "Surat Masuk", "Permintaan data layanan", "15 Mei 2025", "Otomatis", "Selesai"],
@@ -4965,21 +4834,25 @@ function ArchiveHome({ ajuanRequests = [] }) {
     ["AJ/2025/05/00124", "Ajuan Surat", "Surat Keterangan Aktif", "14 Mei 2025", "Otomatis", "Disetujui"]
   ];
   const completedAjuanArchiveRows = getCompletedAjuanArchiveRows(ajuanRequests);
+  const incomingArchiveRows = getIncomingLetterArchiveRows(incomingLetters);
+  const outgoingArchiveRows = getOutgoingLetterArchiveRows(outgoingLetters);
   const existingArchiveNumbers = new Set(baseArchiveRows.map((row) => row[0]));
   const archiveRows = [
-    ...completedAjuanArchiveRows.filter((row) => !existingArchiveNumbers.has(row[0])),
+    ...[...completedAjuanArchiveRows, ...incomingArchiveRows, ...outgoingArchiveRows]
+      .filter((row, index, rows) => rows.findIndex((candidate) => candidate[0] === row[0]) === index)
+      .filter((row) => !existingArchiveNumbers.has(row[0])),
     ...baseArchiveRows
   ];
   const archiveSummary = [
     ["Total Arsip", String(archiveRows.length), "Semua dokumen otomatis", "folder", "blue"],
-    ["Ajuan Selesai", String(archiveRows.filter((row) => row[1] === "Ajuan Surat").length), "Masuk otomatis setelah penomoran", "check", "green"],
-    ["Surat Masuk", String(archiveRows.filter((row) => row[1] === "Surat Masuk").length), "Masuk setelah selesai", "mail", "purple"],
-    ["Disposisi", String(archiveRows.filter((row) => row[1] === "Disposisi").length), "Tindak lanjut selesai", "clipboard", "orange"]
+    ["Ajuan Surat", String(archiveRows.filter((row) => row[1] === "Ajuan Surat").length), "Otomatis setelah penomoran", "check", "green"],
+    ["Surat Masuk", String(archiveRows.filter((row) => row[1] === "Surat Masuk").length), "Otomatis setelah nomor tersimpan", "mail", "purple"],
+    ["Surat Keluar", String(archiveRows.filter((row) => row[1] === "Surat Keluar").length), "Otomatis setelah penomoran", "send", "orange"]
   ];
   const archiveFilterMap = {
-    "Ajuan Selesai": "Ajuan Surat",
+    "Ajuan Surat": "Ajuan Surat",
     "Surat Masuk": "Surat Masuk",
-    Disposisi: "Disposisi"
+    "Surat Keluar": "Surat Keluar"
   };
   const getArchiveLetterTypeFolder = (row) => row[2] || row[1] || "Lainnya";
   const archiveTypeFolders = Object.entries(
@@ -5016,12 +4889,41 @@ function ArchiveHome({ ajuanRequests = [] }) {
     if (archivePage > totalArchivePages) setArchivePage(totalArchivePages);
   }, [archivePage, totalArchivePages]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadIncomingArchiveData() {
+      const localItems = await hydrateIncomingDocumentPayloads(getActiveIncomingLetters(readLocalJson(LOCAL_INCOMING_KEY, [])));
+      if (!getStoredToken() || isDummyToken()) {
+        if (active) setIncomingLetters(localItems);
+        return;
+      }
+      try {
+        const payload = await apiFetch("/incoming-letters?perPage=100");
+        const apiItems = getActiveIncomingLetters(payload.data || []);
+        const byNumber = new Map();
+        [...apiItems, ...localItems].forEach((item) => {
+          const number = getIncomingArchiveNumber(item);
+          if (number && !byNumber.has(number)) byNumber.set(number, item);
+        });
+        if (active) setIncomingLetters([...byNumber.values()]);
+      } catch {
+        if (active) setIncomingLetters(localItems);
+      }
+    }
+
+    loadIncomingArchiveData();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <section className="archivePage">
       <header className="ajuanHeader">
         <div>
           <h1>Arsip Digital</h1>
-          <p>Arsip dibuat otomatis dari surat dan ajuan yang sudah selesai, tanpa upload dokumen ulang.</p>
+          <p>Arsip dibuat otomatis ketika nomor surat tersimpan, tanpa upload dokumen ulang.</p>
         </div>
       </header>
 
@@ -5043,7 +4945,7 @@ function ArchiveHome({ ajuanRequests = [] }) {
         </div>
         <div className="archiveNotice">
           <LineIcon name="info" />
-          <span>Ajuan surat otomatis masuk arsip ketika operator menyimpan nomor surat final dan status berubah menjadi <strong>Selesai</strong>.</span>
+          <span>Ajuan Surat, Surat Masuk, dan Surat Keluar otomatis masuk arsip setelah operator menyimpan <strong>nomor surat</strong>.</span>
         </div>
         <section className="dispositionFolderPanel archiveFolderPanel">
           <div className="dispositionFolderHeader">
@@ -5136,16 +5038,66 @@ function ArchiveHome({ ajuanRequests = [] }) {
 
 function getCompletedAjuanArchiveRows(ajuanRequests) {
   return getLatestAjuanRequests(ajuanRequests)
-    .filter((item) => getAjuanWorkflowStatus(item) === "Selesai" && getAjuanNomorSurat(item) !== "-")
+    .filter((item) => getAjuanNomorSurat(item) !== "-")
     .map((item) => [
       getAjuanNomorSurat(item),
       "Ajuan Surat",
       item.judul || item.keterangan || item.jenis || "-",
       getAjuanArchiveDate(item),
       "Otomatis",
-      "Selesai",
+      getAjuanWorkflowStatus(item),
       item
     ]);
+}
+
+function getIncomingArchiveNumber(item) {
+  return String(item?.letter_number || item?.letterNumber || item?.nomorSurat || "").trim();
+}
+
+function getIncomingLetterArchiveRows(incomingLetters = []) {
+  return getActiveIncomingLetters(incomingLetters)
+    .filter((item) => getIncomingArchiveNumber(item))
+    .map((item) => [
+      getIncomingArchiveNumber(item),
+      "Surat Masuk",
+      item.subject || item.perihal || "-",
+      formatArchiveDate(item.received_date || item.receivedDate || item.created_at || item.createdAt || item.letter_date || item.letterDate),
+      "Otomatis",
+      item.status || "Diregistrasi",
+      item
+    ]);
+}
+
+function getOutgoingLetterArchiveRows(outgoingLetters = []) {
+  return outgoingLetters
+    .filter((item) => String(item?.nomorFinal || item?.nomorSuratFinal || "").trim())
+    .map((item) => [
+      String(item.nomorFinal || item.nomorSuratFinal).trim(),
+      "Surat Keluar",
+      item.perihal || item.judul || item.jenis || "-",
+      formatArchiveDate(item.dinomoriPada || item.tanggalKirim || item.tanggalInput || item.tanggal),
+      "Otomatis",
+      item.status || "Dikirim",
+      item
+    ]);
+}
+
+function formatArchiveDate(value) {
+  if (!value) return new Date().toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jakarta"
+  });
+  const raw = String(value);
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw.split(" pukul ")[0];
+  return parsed.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jakarta"
+  });
 }
 
 function getPaginationItems(currentPage, totalPages) {
@@ -5161,7 +5113,17 @@ function getPaginationItems(currentPage, totalPages) {
 function getArchiveRowAttachment(row) {
   const detail = row?.[6];
   if (!detail || typeof detail !== "object") return null;
-  return detail.suratFinalOperator || detail.lampiranFinal?.[0] || detail.dokumenApprovalPimpinan || detail.lampiranApproval?.[0] || null;
+  if (detail.document?.name) {
+    return [
+      detail.document.name,
+      formatFileSize(detail.document.size || 0),
+      "Dokumen Surat Masuk",
+      detail.document.dataUrl || "",
+      detail.document.type || "application/pdf",
+      detail.document.storageKey || ""
+    ];
+  }
+  return detail.suratFinalOperator || detail.lampiranFinal?.[0] || detail.dokumenApprovalPimpinan || detail.lampiranApproval?.[0] || detail.lampiran?.[0] || null;
 }
 
 function getAjuanApprovalAttachments(detail) {
@@ -7613,7 +7575,7 @@ function DispositionDashboard({ rows, query, setQuery, onDetail, onProcess, setC
             <button
               type="button"
               className="dispositionActivityLink"
-              onClick={() => setConfirm({ title: "Lihat semua aktivitas", body: "Riwayat lengkap aktivitas disposisi tersedia melalui audit trail dan notifikasi internal." })}
+              onClick={() => setConfirm({ title: "Lihat semua aktivitas", body: "Riwayat lengkap aktivitas disposisi tersedia melalui audit trail." })}
             >
               Lihat semua aktivitas <span aria-hidden="true">-&gt;</span>
             </button>
@@ -8270,8 +8232,7 @@ function PimpinanDispositionProcess({ detail, onBack, setConfirm }) {
             </section>
 
             <div className="dispositionSubmitBar">
-              <button type="button" className="softBtn" onClick={() => setConfirm({ title: "Kirim pengingat?", body: `Pengingat tindak lanjut untuk ${detail.id} akan dikirim ke ${detail.tujuan}.` })}><LineIcon name="bell" /> Kirim Pengingat</button>
-              <button type="button" className="primaryBtn" onClick={() => setConfirm({ title: "Simpan proses disposisi?", body: `Status dan catatan ${detail.id} akan diperbarui, notifikasi dikirim, dan audit trail dicatat.` })}><LineIcon name="check" /> Simpan Proses</button>
+              <button type="button" className="primaryBtn" onClick={() => setConfirm({ title: "Simpan proses disposisi?", body: `Status dan catatan ${detail.id} akan diperbarui dan audit trail dicatat.` })}><LineIcon name="check" /> Simpan Proses</button>
             </div>
           </form>
         </div>
@@ -8285,7 +8246,7 @@ function PimpinanDispositionProcess({ detail, onBack, setConfirm }) {
           </div>
           <div className="dispositionFlow">
             <h3>Alur Proses</h3>
-            {["Review hasil", "Beri catatan", "Simpan status", "Notifikasi penerima"].map((item, index) => (
+            {["Review hasil", "Beri catatan", "Simpan status", "Proses selesai"].map((item, index) => (
               <p key={item}><b>{index + 1}</b>{item}</p>
             ))}
           </div>
@@ -8395,7 +8356,7 @@ function DataTable({
                     ) : (
                       <div className="actions">
                         <button className="softBtn" onClick={() => onDetail ? onDetail(row) : setConfirm({ title: "Buka detail?", body: "Detail berisi preview dokumen, status proses, dan riwayat aktivitas." })}>Detail</button>
-                        <button className="softBtn" onClick={() => onProcess ? onProcess(row) : setConfirm({ title: "Proses data?", body: "Status akan diperbarui, notifikasi dikirim, dan audit trail dicatat." })}>Proses</button>
+                        <button className="softBtn" onClick={() => onProcess ? onProcess(row) : setConfirm({ title: "Proses data?", body: "Status akan diperbarui dan audit trail dicatat." })}>Proses</button>
                       </div>
                     )}
                   </td>
@@ -8627,10 +8588,16 @@ function OutgoingLetterDetail({ detail, onBack, onRevise, onNumbering, backLabel
   const outgoingStageMap = { Draft: 0, Ditolak: 1, "Menunggu Approval": 2, Disetujui: 3, Dikirim: 4, Selesai: 4 };
   const detailStageIndex = outgoingStageMap[detailStatus] ?? getAjuanStageIndex(detailStatus);
   const isRejected = isAjuanRevisionStatus(detailStatus);
+  const outgoingStages = isRejected
+    ? ["Draft", "Ditolak", "Approval", "Penomoran Surat", "Selesai"]
+    : ["Draft", "Dikirim", "Approval", "Penomoran Surat", "Selesai"];
   const needsNumbering = detail.status === "Disetujui";
   const rejectionNote = detail.catatanPimpinan || detail.catatanOperator || "";
   const finalAttachments = getAjuanFinalAttachments(detail);
-  const attachments = detail.lampiran?.length ? detail.lampiran : [["Dokumen_Surat_Keluar.pdf", "512 KB", "Diunggah operator"]];
+  const approvalAttachments = getAjuanApprovalAttachments(detail);
+  const attachments = ["Disetujui", "Dikirim", "Selesai"].includes(detailStatus) && approvalAttachments.length
+    ? approvalAttachments
+    : (detail.lampiran?.length ? detail.lampiran : [["Dokumen_Surat_Keluar.pdf", "512 KB", "Diunggah operator"]]);
   return (
     <section className="incomingPage dispositionDetailPage ajuanDraftDetailPage outgoingDetailPage">
       <header className="dispositionCreateHeader">
@@ -8713,7 +8680,7 @@ function OutgoingLetterDetail({ detail, onBack, onRevise, onNumbering, backLabel
           )}
 
           <article className="dispositionFormCard">
-            <h2><LineIcon name="upload" /> Lampiran</h2>
+            <h2><LineIcon name="upload" /> {approvalAttachments.length && ["Disetujui", "Dikirim", "Selesai"].includes(detailStatus) ? "Dokumen Surat Disetujui" : "Lampiran"}</h2>
             <div className="attachmentList">
               {attachments.map((attachment) => {
                 const [name, size, meta] = attachment;
@@ -8738,8 +8705,13 @@ function OutgoingLetterDetail({ detail, onBack, onRevise, onNumbering, backLabel
         <aside className="dispositionPreview">
           <div className="dispositionFlow">
             <h3>Status Surat</h3>
-            {["Draft", "Dikirim", "Approval", "Penomoran Surat", "Selesai"].map((item, index) => (
-              <p key={item} className={index <= detailStageIndex ? "active" : ""}><b>{index + 1}</b>{item}</p>
+            {outgoingStages.map((item, index) => (
+              <p
+                key={item}
+                className={`${index < detailStageIndex ? "completed" : ""}${index === detailStageIndex ? " active" : ""}${isRejected && index === detailStageIndex ? " rejected" : ""}`}
+              >
+                <b>{index + 1}</b>{item}
+              </p>
             ))}
           </div>
           {isRejected && (
@@ -8766,6 +8738,10 @@ function ApprovalLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
   const [noteError, setNoteError] = useState("");
   const [approvalFile, setApprovalFile] = useState(null);
   const [approvalFileError, setApprovalFileError] = useState("");
+  const canDecide = detail.status === "Menunggu Approval";
+  const isApproved = detail.status === "Disetujui";
+  const isRejected = detail.status === "Ditolak";
+  const hasDecision = isApproved || isRejected;
   const decisionTime = () => new Date().toLocaleString("id-ID", {
     day: "numeric",
     month: "long",
@@ -8833,18 +8809,20 @@ function ApprovalLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
     });
   }
 
-  const attachments = detail.lampiran?.length
-    ? detail.lampiran
-    : [[`${safeFilename(detail.nomor)}_${safeFilename(detail.jenis)}.pdf`, "210 KB", "Dokumen surat keluar dari operator"]];
+  const approvalAttachments = getAjuanApprovalAttachments(detail);
+  const attachments = isApproved && approvalAttachments.length
+    ? approvalAttachments
+    : (detail.lampiran?.length
+        ? detail.lampiran
+        : [[`${safeFilename(detail.nomor)}_${safeFilename(detail.jenis)}.pdf`, "210 KB", "Dokumen surat keluar dari operator"]]);
 
   return (
     <section className="requestDetailPage">
       <header className="requestDetailTop">
-        <button type="button" className="backLink" onClick={onBack}><LineIcon name="arrowLeft" /> Kembali ke Approval</button>
-        <h1>Approval Surat Keluar</h1>
-        <div className="requestMeta">
-          <Status text={detail.status} />
-          <span />
+        <button type="button" className="backLink" onClick={onBack}><LineIcon name="arrowLeft" /> Kembali ke Daftar Approval</button>
+        <h1>{hasDecision ? "Review Approval Surat Keluar" : "Approval Surat Keluar"}</h1>
+        <div className={hasDecision ? "requestMeta reviewApprovalMeta" : "requestMeta"}>
+          {!hasDecision && <><Status text={detail.status} /><span /></>}
           <div><small>Nomor Surat</small><strong>{detail.nomor}</strong></div>
           <b><LineIcon name="check" /></b>
         </div>
@@ -8886,8 +8864,8 @@ function ApprovalLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
           </article>
         </div>
 
-        <aside className="requestSide">
-          <article className="requestActionCard verificationActive">
+        {(canDecide || hasDecision) && <aside className="requestSide">
+          {canDecide && <article className="requestActionCard verificationActive">
             <h2><LineIcon name="shield" /> Keputusan Pimpinan</h2>
             <p>Pilih keputusan terlebih dahulu. Form catatan dan dokumen akan muncul sesuai keputusan.</p>
             <div className="verificationActions">
@@ -8927,8 +8905,32 @@ function ApprovalLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
                 </div>
               </div>
             )}
-          </article>
-        </aside>
+          </article>}
+          {hasDecision && (
+            <article className="requestActionCard approvalReviewCard">
+              <h2><LineIcon name="shield" /> Keputusan Pimpinan</h2>
+              <div className={`approvalDecisionResult ${isApproved ? "approved" : "rejected"}`}>
+                <span><LineIcon name={isApproved ? "check" : "x"} /></span>
+                <div>
+                  <strong>{isApproved ? "Disetujui" : "Ditolak"}</strong>
+                  <small>
+                    {isApproved
+                      ? "Surat ini telah disetujui dan dapat diproses lebih lanjut."
+                      : "Surat ini ditolak dan dikembalikan untuk diperbaiki."}
+                  </small>
+                </div>
+                <dl>
+                  <div><dt>{isApproved ? "Disetujui oleh" : "Ditolak oleh"}</dt><dd>{detail.diputuskanOleh || "Dewi Pimpinan"}</dd></div>
+                  <div><dt>Tanggal Keputusan</dt><dd>{detail.diputuskanPada || "-"}</dd></div>
+                </dl>
+              </div>
+              <div className="approvalReviewNote">
+                <strong>Catatan Pimpinan</strong>
+                <p>{detail.catatanPimpinan || (isApproved ? "Surat telah sesuai, silakan lanjutkan proses penomoran dan pengiriman." : "Tidak ada catatan tambahan.")}</p>
+              </div>
+            </article>
+          )}
+        </aside>}
       </section>
       {previewDocument && <AttachmentPreviewModal attachment={previewDocument} detail={detail} onClose={() => setPreviewDocument(null)} />}
     </section>
@@ -8945,7 +8947,10 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
   const [processError, setProcessError] = useState("");
   const [numberingErrors, setNumberingErrors] = useState({});
   const savedRevisionAttachment = detail.dokumenPendukungRevisi || detail.lampiranRevisiDraft?.[0] || null;
-  const attachments = detail.lampiran?.length ? detail.lampiran : [["Dokumen_Surat_Keluar.pdf", "512 KB", "Diunggah operator"]];
+  const approvalAttachments = getAjuanApprovalAttachments(detail);
+  const attachments = isApproved && approvalAttachments.length
+    ? approvalAttachments
+    : (detail.lampiran?.length ? detail.lampiran : [["Dokumen_Surat_Keluar.pdf", "512 KB", "Diunggah operator"]]);
   const processTime = () => new Date().toLocaleString("id-ID", {
     day: "numeric",
     month: "long",
@@ -9044,6 +9049,7 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
           nomorFinal: trimmedNumber,
           suratFinalOperator: finalAttachment,
           lampiranFinal: [finalAttachment],
+          dinomoriPada: processTime(),
           catatanOperator: processNote.trim(),
           riwayat: [[processTime(), processNote.trim() ? `Operator memberi nomor, upload surat final, dan mengirim: ${processNote.trim()}` : "Operator memberi nomor, upload surat final, dan mengirim surat keluar"]]
         });
@@ -9062,7 +9068,7 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
     }
     setConfirm({
       title: "Ajukan approval?",
-      body: `${detail.nomor} akan dikirim ke pimpinan untuk approval dan notifikasi dibuat.`,
+      body: `${detail.nomor} akan dikirim ke pimpinan untuk approval.`,
       onConfirm: () => {
         onUpdateOutgoing?.(detail.nomor, {
           status: "Menunggu Approval",
@@ -9112,7 +9118,7 @@ function OutgoingLetterProcess({ detail, onBack, setConfirm, onUpdateOutgoing })
               </article>
 
               <article className="dispositionFormCard">
-                <h2><LineIcon name="upload" /> Lampiran</h2>
+                <h2><LineIcon name="upload" /> Dokumen Surat Disetujui</h2>
                 <div className="attachmentList">
                   {attachments.map((attachment) => {
                     const [name, size, meta] = attachment;
@@ -9460,7 +9466,7 @@ function getPimpinanApprovalAjuanRequests(ajuanRequests) {
 }
 
 function AjuanApprovalProcess({ detail, onBack, setConfirm, onUpdateAjuan }) {
-  const isRejected = detail.status === "Ditolak";
+  const canDecide = detail.status === "Menunggu Approval";
   const [decisionMode, setDecisionMode] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
   const [rejectionNote, setRejectionNote] = useState("");
@@ -9521,7 +9527,7 @@ function AjuanApprovalProcess({ detail, onBack, setConfirm, onUpdateAjuan }) {
     setConfirm({
       title: approved ? "Setujui ajuan?" : "Tolak ajuan?",
       body: approved
-        ? `${detail.nomor} akan berubah menjadi Disetujui dan surat approval ${approvalFile.name} tersimpan. Operator dan pemohon menerima notifikasi.`
+        ? `${detail.nomor} akan berubah menjadi Disetujui dan surat approval ${approvalFile.name} tersimpan.`
         : `${detail.nomor} akan ditolak dengan catatan: ${trimmedRejectionNote}`,
       onConfirm: () => {
         onUpdateAjuan?.(detail.nomor, {
@@ -9558,7 +9564,7 @@ function AjuanApprovalProcess({ detail, onBack, setConfirm, onUpdateAjuan }) {
         </div>
       </header>
 
-      <section className={isRejected ? "ajuanDetailGrid requestLayout rejectedReviewLayout" : "ajuanDetailGrid requestLayout"}>
+      <section className={canDecide ? "ajuanDetailGrid requestLayout" : "ajuanDetailGrid requestLayout rejectedReviewLayout"}>
         <div className="requestDetailMain">
           <article className="requestCard">
             <h2><LineIcon name="clipboard" /> Data Ajuan</h2>
@@ -9595,7 +9601,7 @@ function AjuanApprovalProcess({ detail, onBack, setConfirm, onUpdateAjuan }) {
             </div>
           </article>
         </div>
-        {!isRejected && <aside className="requestSide">
+        {canDecide && <aside className="requestSide">
           <article className="requestActionCard verificationActive">
             <h2><LineIcon name="shield" /> Keputusan Pimpinan</h2>
             <p>Pilih keputusan terlebih dahulu. Form catatan dan dokumen akan muncul sesuai keputusan.</p>
@@ -10079,7 +10085,7 @@ function ProfileSettings({ config, profile, role, setConfirm }) {
     <section className="profileSettingsPage">
       <header className="dashboardTitle">
         <h1>Pengaturan Profil</h1>
-        <p>Kelola informasi akun dan preferensi notifikasi internal.</p>
+        <p>Kelola informasi akun Anda.</p>
       </header>
 
       <section className="profileSettingsGrid">
@@ -10106,7 +10112,6 @@ function ProfileSettings({ config, profile, role, setConfirm }) {
               <label>Email<input name="email" type="email" defaultValue={profile.email} /></label>
               <label>Nomor HP<input name="phone" defaultValue={profile.phone} /></label>
               <label>Unit Kerja<input name="unit" defaultValue={profile.unit} /></label>
-              <label>Preferensi Notifikasi<select name="notification"><option>Email dan aplikasi</option><option>Aplikasi saja</option><option>Email saja</option></select></label>
             </div>
             <label className="profileFullField">Alamat<textarea name="address" defaultValue={profile.address} /></label>
             <div className="actions">
